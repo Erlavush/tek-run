@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+
+*.log
+.codex-next-dev.log
+.codex-next-dev.err.log
+.next-dev.log
+
+public-display-current.png
+
+.DS_Store
+Thumbs.db

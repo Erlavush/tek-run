@@ -1,0 +1,154 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { CameraConnectionState, VideoInputOption } from "@/lib/types";
+
+function mapVideoInputs(devices: MediaDeviceInfo[]): VideoInputOption[] {
+  return devices
+    .filter((device) => device.kind === "videoinput")
+    .map((device, index) => ({
+      deviceId: device.deviceId,
+      label: device.label || `Camera ${index + 1}`,
+    }));
+}
+
+export function useCamera() {
+  const [devices, setDevices] = useState<VideoInputOption[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState("");
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [status, setStatus] = useState<CameraConnectionState>("disconnected");
+  const [error, setError] = useState<string | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const refreshDevices = useCallback(async () => {
+    if (!navigator.mediaDevices?.enumerateDevices) {
+      setDevices([]);
+      return;
+    }
+
+    const nextDevices = mapVideoInputs(await navigator.mediaDevices.enumerateDevices());
+    setDevices(nextDevices);
+    setSelectedDeviceId((current) => current || nextDevices[0]?.deviceId || "");
+  }, []);
+
+  const releaseStream = useCallback(() => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setStream(null);
+  }, []);
+
+  const stopCamera = useCallback(() => {
+    releaseStream();
+    setStatus("disconnected");
+  }, [releaseStream]);
+
+  const startCamera = useCallback(
+    async (deviceId?: string) => {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setStatus("unsupported");
+        setError("This browser does not expose camera access.");
+        return;
+      }
+
+      const requestedDeviceId = deviceId ?? selectedDeviceId;
+
+      setError(null);
+      releaseStream();
+
+      const buildConstraints = (withDeviceId: boolean): MediaStreamConstraints => ({
+        audio: false,
+        video: withDeviceId && requestedDeviceId
+          ? {
+              deviceId: { exact: requestedDeviceId },
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
+            }
+          : {
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
+              facingMode: { ideal: "environment" },
+            },
+      });
+
+      try {
+        const nextStream = await navigator.mediaDevices.getUserMedia(
+          buildConstraints(Boolean(requestedDeviceId)),
+        );
+
+        streamRef.current = nextStream;
+        setStream(nextStream);
+        setStatus("connected");
+
+        if (requestedDeviceId) {
+          setSelectedDeviceId(requestedDeviceId);
+        }
+
+        await refreshDevices();
+      } catch (firstError) {
+        const domError = firstError as DOMException;
+
+        if (domError.name === "NotAllowedError") {
+          setStatus("denied");
+          setError("Camera permission was denied. Allow access and retry.");
+          return;
+        }
+
+        if (requestedDeviceId) {
+          try {
+            const fallbackStream = await navigator.mediaDevices.getUserMedia(
+              buildConstraints(false),
+            );
+
+            streamRef.current = fallbackStream;
+            setStream(fallbackStream);
+            setStatus("connected");
+            await refreshDevices();
+            return;
+          } catch {
+            // Fall through to the generic error state below.
+          }
+        }
+
+        setStatus("disconnected");
+        setError("Unable to start the selected camera feed.");
+      }
+    },
+    [refreshDevices, releaseStream, selectedDeviceId],
+  );
+
+  useEffect(() => {
+    void refreshDevices();
+
+    const mediaDevices = navigator.mediaDevices;
+    if (!mediaDevices?.addEventListener) {
+      return;
+    }
+
+    const handleDeviceChange = () => {
+      void refreshDevices();
+    };
+
+    mediaDevices.addEventListener("devicechange", handleDeviceChange);
+
+    return () => {
+      mediaDevices.removeEventListener("devicechange", handleDeviceChange);
+    };
+  }, [refreshDevices]);
+
+  useEffect(() => {
+    return () => {
+      releaseStream();
+    };
+  }, [releaseStream]);
+
+  return {
+    devices,
+    error,
+    selectedDeviceId,
+    setSelectedDeviceId,
+    startCamera,
+    status,
+    stopCamera,
+    stream,
+  };
+}

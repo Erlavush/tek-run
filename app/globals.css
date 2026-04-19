@@ -1,0 +1,276 @@
+@import "tailwindcss";
+
+:root {
+  --primary-start: #4c05e4;
+  --primary-end: #a00063;
+  --purple-accent: #7701a6;
+  --magenta-accent: #b10072;
+  --lime-accent: #a1d110;
+  --neon-green: #56f005;
+  --leaf-green: #31b548;
+  --blue-accent: #3152a9;
+  --sky-blue: #3da3f4;
+  --orange-accent: #fc6824;
+  --soft-red: #ff5a5a;
+  --background-light: #ececec;
+  --card-white: #ffffff;
+  --text-dark: #1f1f1f;
+  --card-border: rgba(31, 31, 31, 0.08);
+  --panel-shadow: 0 34px 80px -42px rgba(57, 37, 94, 0.36);
+}
+
+[data-theme-mode="high-contrast"] {
+  --background-light: #e4e4e4;
+  --card-border: rgba(31, 31, 31, 0.15);
+  --panel-shadow: 0 34px 80px -44px rgba(24, 24, 24, 0.42);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(76, 5, 228, 0.08), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(161, 209, 16, 0.1), transparent 26%),
+    linear-gradient(180deg, #f5f5f5 0%, var(--background-light) 52%, #f0f0f0 100%);
+  color: var(--text-dark);
+  font-family: var(--font-body), sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(161, 209, 16, 0.35);
+  color: var(--text-dark);
+}
+
+.panel-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+  border-radius: 1.75rem;
+  background: var(--card-white);
+  box-shadow: var(--panel-shadow);
+}
+
+.panel-card::after {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(255, 255, 255, 0) 40%
+  );
+}
+
+.gradient-shell {
+  background: linear-gradient(135deg, var(--primary-start), var(--primary-end));
+}
+
+.soft-grid {
+  background-image:
+    linear-gradient(rgba(31, 31, 31, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(31, 31, 31, 0.04) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+
+.accent-orbit {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  opacity: 0.2;
+  filter: blur(0.5px);
+}
+
+.finish-line-glow {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.22),
+    0 0 18px rgba(161, 209, 16, 0.65),
+    0 0 36px rgba(86, 240, 5, 0.28);
+}
+
+.status-pulse {
+  animation: pulse-ring 1.9s ease-in-out infinite;
+}
+
+.scrollbar-slim {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(76, 5, 228, 0.24) transparent;
+}
+
+.scrollbar-slim::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scrollbar-slim::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-slim::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: linear-gradient(180deg, rgba(76, 5, 228, 0.5), rgba(160, 0, 99, 0.35));
+}
+
+.sport-swoosh {
+  position: absolute;
+  border-radius: 9999px;
+  border: 16px solid rgba(76, 5, 228, 0.12);
+  transform: rotate(24deg);
+}
+
+.sport-swoosh.alt {
+  border-color: rgba(161, 209, 16, 0.18);
+  transform: rotate(-24deg);
+}
+
+.festival-display-background {
+  background: linear-gradient(
+    -45deg, 
+    #0051c1, 
+    #fbcf05,
+    #45b627, 
+    #22cbfa, 
+    #a93ed6,
+    #0051c1
+  );
+  background-size: 400% 400%;
+  animation: festival-rainbow-shift 40s ease infinite;
+}
+
+@keyframes festival-rainbow-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.festival-title-font {
+  font-family: "Luckiest Guy", var(--font-festival-title), cursive;
+  letter-spacing: 0.04em;
+}
+
+.festival-card-font {
+  font-family: "Carter One", var(--font-festival-card), cursive;
+}
+
+.festival-clock-font {
+  font-family: var(--font-festival-clock), sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.overlay-title-font {
+  font-family: "Luckiest Guy", var(--font-festival-title), cursive !important;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+.overlay-script-font {
+  font-family: "Carter One", var(--font-festival-card), cursive !important;
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.overlay-time-font {
+  font-family: var(--font-overlay-time), "Roboto Mono", monospace !important;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -0.09em;
+}
+
+.overlay-digital-font {
+  font-family: "Digital-7 Mono", "Digital-7", var(--font-festival-clock), monospace !important;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: 0em !important;
+}
+
+.festival-main-frame {
+  border: 8px solid #000;
+  border-radius: 34px;
+  background:
+    radial-gradient(circle at 50% 86%, rgba(255, 255, 255, 0.76), transparent 27%),
+    radial-gradient(circle at 14% 22%, rgba(255, 255, 255, 0.2), transparent 24%),
+    linear-gradient(180deg, rgba(255, 238, 251, 0.64), rgba(255, 245, 252, 0.48));
+  box-shadow:
+    0 26px 60px -30px rgba(62, 13, 80, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(8px);
+}
+
+.festival-canvas-surface {
+  background:
+    radial-gradient(circle at 50% 88%, rgba(255, 255, 255, 0.86), transparent 24%),
+    linear-gradient(180deg, rgba(250, 223, 248, 0.86), rgba(247, 230, 248, 0.92));
+}
+
+.festival-panel {
+  border: 4px solid #000;
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at 50% 55%, rgba(255, 255, 255, 0.5), transparent 40%),
+    linear-gradient(180deg, rgba(255, 221, 251, 0.58), rgba(255, 245, 253, 0.4));
+  box-shadow:
+    0 20px 48px -34px rgba(45, 19, 59, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.38);
+}
+
+.festival-live-dot {
+  animation: live-signal 1.2s ease-in-out infinite;
+}
+
+@keyframes festival-gradient-shift {
+  0% {
+    background-position: 0% 45%, 0% 50%, 50% 100%, 0% 50%;
+  }
+  50% {
+    background-position: 100% 55%, 100% 45%, 40% 0%, 100% 50%;
+  }
+  100% {
+    background-position: 0% 45%, 0% 50%, 50% 100%, 0% 50%;
+  }
+}
+
+@keyframes live-signal {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.86);
+  }
+}
+
+@keyframes pulse-ring {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.03);
+    opacity: 0.82;
+  }
+}
