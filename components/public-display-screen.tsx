@@ -4,16 +4,26 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ccommunifestLogo from "@/ccommunifest-logo.png";
 import communityRunLogo from "@/community-run-logo.png";
-import runningLogo from "@/running-logo.png";
 import leaderboardLogo from "@/lb-logo.png";
+import runningLogo from "@/running-logo.png";
 import { useCamera } from "@/hooks/use-camera";
 import { useLocalTime } from "@/hooks/use-local-time";
 import {
-  PUBLIC_DISPLAY_START_TIME_ISO,
-  publicDisplayLatestRunners,
+  DASHBOARD_SETTINGS_STORAGE_KEY,
+  DASHBOARD_SETTINGS_UPDATED_EVENT,
+  defaultDashboardSettings,
+  readDashboardSettings,
+} from "@/lib/dashboard-settings";
+import {
   publicDisplayLeaderboard,
+  publicDisplayRecentFemaleFinishers,
+  publicDisplayRecentMaleFinishers,
 } from "@/lib/mock-data";
-import type { LeaderboardEntry, LatestRunnerCard, RaceDivision } from "@/lib/types";
+import type {
+  LeaderboardEntry,
+  RaceDivision,
+  RecentDivisionFinisher,
+} from "@/lib/types";
 
 const DISPLAY_TIME_ZONE = "Asia/Manila";
 const BASE_STAGE_WIDTH = 1280;
@@ -31,13 +41,11 @@ function sy(value: number) {
   return value * STAGE_Y_RATIO;
 }
 
-const latestRunnerTitleStyle = {
-  WebkitTextStroke: "1px white",
-  textShadow:
-    "1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 0 3px 0 rgba(0,0,0,0.2)",
-} as const;
+function formatStartTime(value: string | null) {
+  if (!value) {
+    return "--:--";
+  }
 
-function formatStartTime(value: string) {
   const formatted = new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit",
@@ -48,17 +56,16 @@ function formatStartTime(value: string) {
   return formatted.replace("AM", "A.M.").replace("PM", "P.M.");
 }
 
-function formatRaceClock(value: Date | null) {
-  if (!value) {
+function formatRaceClock(value: Date | null, startTimeIso: string | null) {
+  if (!value || !startTimeIso) {
     return {
-      hours: "--",
-      minutes: "--",
-      seconds: "--",
-      centiseconds: "--",
+      hours: "00",
+      minutes: "00",
+      seconds: "00",
     };
   }
 
-  const startTime = new Date(PUBLIC_DISPLAY_START_TIME_ISO);
+  const startTime = new Date(startTimeIso);
   const elapsedMs = Math.max(0, value.getTime() - startTime.getTime());
   const totalSeconds = Math.floor(elapsedMs / 1000);
   const hours = Math.floor(totalSeconds / 3600)
@@ -68,16 +75,28 @@ function formatRaceClock(value: Date | null) {
     .toString()
     .padStart(2, "0");
   const seconds = (totalSeconds % 60).toString().padStart(2, "0");
-  const centiseconds = Math.floor((elapsedMs % 1000) / 10)
-    .toString()
-    .padStart(2, "0");
 
   return {
     hours,
     minutes,
     seconds,
-    centiseconds,
   };
+}
+
+function getRaceClockReferenceTime(
+  localTime: Date | null,
+  raceStatus: "idle" | "running" | "ended",
+  raceEndTimeIso: string | null,
+) {
+  if (raceStatus === "ended" && raceEndTimeIso) {
+    return new Date(raceEndTimeIso);
+  }
+
+  if (raceStatus === "running") {
+    return localTime;
+  }
+
+  return null;
 }
 
 function PedestalIcon() {
@@ -178,7 +197,7 @@ function LeaderboardSection({
   division: RaceDivision;
   entries: LeaderboardEntry[];
 }) {
-  const titleClass = division === "male" ? "text-[#60A5FA]" : "text-[#F472B6]";
+  const titleClass = division === "male" ? "text-[#3bddff]" : "text-[#ff4ba0]";
 
   return (
     <section className="space-y-[8px]">
@@ -192,10 +211,22 @@ function LeaderboardSection({
             entry.place === 1
               ? "bg-gradient-to-r from-[#FCA728]/25 to-black/15 border-[#FCA728]/40 shadow-[0_0_15px_rgba(252,167,40,0.15)]"
               : entry.place === 2
-                ? "bg-gradient-to-r from-[#E0E0E0]/20 to-black/15 border-[#E0E0E0]/30"
+                ? "bg-gradient-to-r from-[#D4DDE8]/24 to-black/15 border-[#C0CAD6]/36 shadow-[0_0_12px_rgba(212,221,232,0.12)]"
                 : entry.place === 3
                   ? "bg-gradient-to-r from-[#D2774A]/25 to-black/15 border-[#D2774A]/30"
                   : "bg-black/12 border-white/8";
+          const rankTextColor =
+            entry.place === 1
+              ? "#FFD447"
+              : entry.place === 2
+                ? "#DCE3EC"
+                : entry.place === 3
+                  ? "#F0B27A"
+                  : "#FFFFFF";
+          const outlinedRankTextStyle = {
+            color: rankTextColor,
+            textShadow: "-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000",
+          } as const;
 
           return (
             <div
@@ -208,12 +239,16 @@ function LeaderboardSection({
                 </div>
               </div>
               <div className="flex items-baseline min-w-0 [text-shadow:0_2px_6px_rgba(0,0,0,0.55)]">
-                <span className="overlay-script-font shrink-0 whitespace-nowrap text-[25px] leading-none text-white mr-1">
+                <span
+                  className="overlay-script-font mr-1 shrink-0 whitespace-nowrap text-[25px] leading-none"
+                  style={outlinedRankTextStyle}
+                >
                   {entry.bibNumber} -
                 </span>
                 <span
-                  className="overlay-script-font whitespace-nowrap leading-none text-white"
+                  className="overlay-script-font whitespace-nowrap leading-none"
                   style={{
+                    ...outlinedRankTextStyle,
                     fontSize:
                       entry.runnerName.length > 8
                         ? `${Math.max(10, 25 * (8 / entry.runnerName.length))}px`
@@ -234,30 +269,155 @@ function LeaderboardSection({
   );
 }
 
-function LatestRunnerBox({ runner }: { runner: LatestRunnerCard }) {
-  const titleClass = runner.division === "male" ? "text-[#60A5FA]" : "text-[#F472B6]";
+function AutoFitText({
+  text,
+  className,
+  maxFontSize,
+  minFontSize,
+}: {
+  text: string;
+  className?: string;
+  maxFontSize: number;
+  minFontSize: number;
+}) {
+  const textRef = useRef<HTMLDivElement>(null);
+  const [fontSize, setFontSize] = useState(maxFontSize);
+
+  useEffect(() => {
+    const element = textRef.current;
+    if (!element) {
+      return;
+    }
+
+    let frameId = 0;
+
+    const fitText = () => {
+      if (!element) {
+        return;
+      }
+
+      let nextFontSize = maxFontSize;
+      element.style.fontSize = `${nextFontSize}px`;
+
+      while (nextFontSize > minFontSize && element.scrollWidth > element.clientWidth) {
+        nextFontSize -= 0.5;
+        element.style.fontSize = `${nextFontSize}px`;
+      }
+
+      setFontSize(nextFontSize);
+    };
+
+    const scheduleFit = () => {
+      cancelAnimationFrame(frameId);
+      frameId = requestAnimationFrame(fitText);
+    };
+
+    scheduleFit();
+
+    const observer = new ResizeObserver(() => {
+      scheduleFit();
+    });
+    observer.observe(element);
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      observer.disconnect();
+    };
+  }, [maxFontSize, minFontSize, text]);
 
   return (
     <div
-      className="flex flex-col justify-between rounded-[20px] border-[2px] border-white/20 bg-gradient-to-br from-black/65 to-purple-900/45 px-4 py-3 backdrop-blur-md shadow-lg"
-      style={{ width: sx(142), height: sy(126) }}
+      ref={textRef}
+      className={className}
+      style={{ fontSize: `${fontSize}px` }}
     >
-      <div>
-        <div className={`overlay-title-font text-center text-[14px] leading-none ${titleClass}`}>
-          {runner.division.toUpperCase()}
-        </div>
-        <div className="mx-auto mt-2 w-[84%] border-t-[2px] border-white/20" />
-      </div>
-
-      <div className="text-center text-white">
-        <div className="overlay-script-font text-[22px] leading-none">{runner.bibNumber}</div>
-        <div className="overlay-script-font mt-2 text-[18px] leading-none">{runner.runnerName}</div>
-      </div>
-
-      <div className="overlay-time-font text-center text-[15px] font-bold leading-none text-white">
-        {runner.finishTime}
-      </div>
+      {text}
     </div>
+  );
+}
+
+function RecentDivisionPanel({
+  division,
+  entries,
+}: {
+  division: RaceDivision;
+  entries: RecentDivisionFinisher[];
+}) {
+  const titleClass = division === "male" ? "text-[#3bddff]" : "text-[#ff4ba0]";
+  const visibleEntries = entries.slice(-3);
+  const historyEntries = visibleEntries.slice(0, -1);
+  const latestEntry = visibleEntries.at(-1);
+
+  return (
+    <section
+      className="flex flex-col rounded-[24px] border-[3px] border-white/85 bg-[linear-gradient(180deg,rgba(18,22,32,0.58)_0%,rgba(29,22,46,0.46)_100%)] px-3 py-3 text-white backdrop-blur-md shadow-2xl"
+      style={{ minHeight: sy(196) }}
+    >
+      <div className={`overlay-title-font text-center text-[21px] leading-none ${titleClass}`}>
+        {division.toUpperCase()}
+      </div>
+      <div className="mx-auto mt-3 h-[2px] rounded-full bg-white/16" style={{ width: "88%" }} />
+
+      <div className="mt-3 space-y-2">
+        {historyEntries.map((entry) => (
+          <div
+            key={entry.id}
+            className="rounded-[16px] border border-white/8 bg-black/14 px-2.5 py-2 text-white [text-shadow:0_2px_8px_rgba(0,0,0,0.28)]"
+          >
+            <div className="flex items-end gap-1.5 whitespace-nowrap">
+              <span className="overlay-time-font text-[15px] font-bold leading-none opacity-95">
+                {entry.sequenceNumber}.
+              </span>
+              <span className="overlay-title-font text-[24px] leading-none">{entry.bibNumber}</span>
+              <AutoFitText
+                text={`- ${entry.runnerName}`}
+                className="overlay-script-font min-w-0 flex-1 whitespace-nowrap leading-none"
+                maxFontSize={17}
+                minFontSize={8}
+              />
+            </div>
+            <div className="pl-[28px] overlay-time-font text-[12px] font-bold leading-none text-white/92">
+              {entry.finishTime}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {latestEntry ? (
+        <div className="mt-2 rounded-[20px] border border-white/16 bg-white/10 px-2 py-2 text-white [text-shadow:0_3px_8px_rgba(0,0,0,0.28)]">
+          <div className="flex items-end gap-1.5 whitespace-nowrap">
+            <span className="overlay-time-font text-[20px] font-bold leading-none text-white/96">
+              {latestEntry.sequenceNumber}.
+            </span>
+            <span
+              className="overlay-script-font text-[45px] leading-none text-transparent"
+              style={{
+                backgroundImage:
+                  "linear-gradient(180deg, #4D16FF 0%, #7600D6 38%, #9D00A9 66%, #D10359 100%)",
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                WebkitTextStroke: "1px #ffffff",
+                filter: "drop-shadow(0 1px 1px rgba(0,0,0,0.35))",
+              }}
+            >
+              {latestEntry.bibNumber}
+            </span>
+          </div>
+
+          <AutoFitText
+            text={latestEntry.runnerName}
+            className="overlay-script-font mt-1.5 w-full whitespace-nowrap px-1 text-center leading-[0.95] text-[#FFD447] [text-shadow:-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,1px_1px_0_#000]"
+            maxFontSize={24}
+            minFontSize={10}
+          />
+
+          <div className="mt-2 overlay-time-font text-center text-[18px] font-bold leading-none text-white/96">
+            {latestEntry.finishTime}
+          </div>
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -266,6 +426,7 @@ export function PublicDisplayScreen() {
   const localTime = useLocalTime(10);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stageScale, setStageScale] = useState(1);
+  const [displaySettings, setDisplaySettings] = useState(defaultDashboardSettings);
 
   useEffect(() => {
     void camera.startCamera();
@@ -304,6 +465,31 @@ export function PublicDisplayScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    const syncSettings = () => {
+      setDisplaySettings(readDashboardSettings());
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (!event.key || event.key === DASHBOARD_SETTINGS_STORAGE_KEY) {
+        syncSettings();
+      }
+    };
+
+    const handleSettingsUpdated = () => {
+      syncSettings();
+    };
+
+    syncSettings();
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener(DASHBOARD_SETTINGS_UPDATED_EVENT, handleSettingsUpdated);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener(DASHBOARD_SETTINGS_UPDATED_EVENT, handleSettingsUpdated);
+    };
+  }, []);
+
   const leaderboardByDivision = useMemo(
     () => ({
       male: publicDisplayLeaderboard.filter((entry) => entry.division === "male"),
@@ -312,11 +498,35 @@ export function PublicDisplayScreen() {
     [],
   );
 
-  const startTimeLabel = useMemo(
-    () => formatStartTime(PUBLIC_DISPLAY_START_TIME_ISO),
+  const recentFinishersByDivision = useMemo(
+    () => ({
+      male: publicDisplayRecentMaleFinishers,
+      female: publicDisplayRecentFemaleFinishers,
+    }),
     [],
   );
-  const raceClock = useMemo(() => formatRaceClock(localTime), [localTime]);
+
+  const startTimeLabel = useMemo(
+    () => formatStartTime(displaySettings.raceStartTimeIso),
+    [displaySettings.raceStartTimeIso],
+  );
+  const raceClock = useMemo(
+    () =>
+      formatRaceClock(
+        getRaceClockReferenceTime(
+          localTime,
+          displaySettings.raceStatus,
+          displaySettings.raceEndTimeIso,
+        ),
+        displaySettings.raceStartTimeIso,
+      ),
+    [
+      displaySettings.raceEndTimeIso,
+      displaySettings.raceStartTimeIso,
+      displaySettings.raceStatus,
+      localTime,
+    ],
+  );
 
   const stageFrameStyle = useMemo(
     () => ({
@@ -345,7 +555,7 @@ export function PublicDisplayScreen() {
         >
           <div className="relative h-full w-full" style={scaledStageStyle}>
             <section
-              className="absolute overflow-hidden rounded-[25px] bg-black"
+              className="absolute overflow-hidden rounded-[25px] bg-black border-[4px] border-white"
               style={{
                 left: sx(30),
                 top: sy(50),
@@ -402,7 +612,7 @@ export function PublicDisplayScreen() {
             </div>
 
             <aside
-              className="absolute z-[5] flex flex-col overflow-hidden rounded-[24px] border-[2px] border-white/16 bg-[linear-gradient(180deg,rgba(18,22,32,0.58)_0%,rgba(29,22,46,0.46)_100%)] px-[20px] py-[18px] backdrop-blur-md shadow-2xl"
+              className="absolute z-[5] flex flex-col overflow-hidden rounded-[24px] border-[3px] border-white/85 bg-[linear-gradient(180deg,rgba(18,22,32,0.58)_0%,rgba(29,22,46,0.46)_100%)] px-[20px] py-[18px] backdrop-blur-md shadow-2xl"
               style={{
                 left: sx(950),
                 top: sy(55),
@@ -410,11 +620,13 @@ export function PublicDisplayScreen() {
                 height: sy(492),
               }}
             >
-              <div className="overlay-title-font mb-[8px] flex items-center justify-center gap-[8px] text-[30px] leading-none text-white">
+              <div className="overlay-title-font mb-[8px] flex items-center justify-center gap-[8px] text-[30px] leading-none text-white [text-shadow:-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,1px_1px_0_#000]">
                 <div className="w-[72px]">
                   <Image src={leaderboardLogo} alt="Leaderboard Logo" className="h-auto w-full object-contain" />
                 </div>
-                <span>LEADERBOARD</span>
+                <span className="flex items-baseline">
+                  <span className="text-[60px]">L</span>EADERBOARD
+                </span>
               </div>
 
               <div className="mx-auto mb-[8px] w-[90%] border-b border-white/12" />
@@ -430,27 +642,21 @@ export function PublicDisplayScreen() {
 
             <section
               className="absolute z-[5]"
-              style={{ left: sx(950), top: sy(560), width: sx(300) }}
+              style={{ left: sx(942), top: sy(548), width: sx(310) }}
             >
-              <h2 className="overlay-title-font mb-0 w-full leading-none text-center text-[24px] text-white flex items-baseline justify-center gap-1">
-                <span className="text-[52px]">R</span>ECENT <span className="text-[50px] ml-2">F</span>INISHERS
+              <h2 className="overlay-title-font flex w-full items-baseline justify-center gap-1 text-center text-[26px] leading-none text-white [text-shadow:-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,1px_1px_0_#000]">
+                <span className="text-[52px]">R</span>ECENT <span className="text-[50px] ml-5">F</span>INISHERS
               </h2>
 
-              <div className="flex justify-center gap-3">
-                {publicDisplayLatestRunners.map((runner) => (
-                  <LatestRunnerBox key={runner.id} runner={runner} />
-                ))}
-              </div>
-
-              <div className="mt-0 flex justify-center">
-                <div style={{ width: sx(300) }}>
-                  <Image
-                    src={runningLogo}
-                    alt="Running art"
-                    className="h-auto w-full object-contain"
-                    priority
-                  />
-                </div>
+              <div className="mt-0 grid grid-cols-2 gap-3">
+                <RecentDivisionPanel
+                  division="male"
+                  entries={recentFinishersByDivision.male}
+                />
+                <RecentDivisionPanel
+                  division="female"
+                  entries={recentFinishersByDivision.female}
+                />
               </div>
             </section>
 
@@ -458,48 +664,54 @@ export function PublicDisplayScreen() {
               className="absolute z-[5] flex items-center justify-between"
               style={{
                 left: sx(30),
-                top: sy(695),
+                top: sy(700),
                 width: sx(890),
                 
               }}
             >
               <div 
-                className="flex flex-col items-center justify-center rounded-[24px] border-[2px] border-white/20 bg-gradient-to-br from-black/60 to-purple-900/40 px-2 py-5 backdrop-blur-md shadow-2xl"
-                style={{ minWidth: sx(300) }}
+                className="flex flex-col items-center justify-center rounded-[24px] border-[3px] border-white/85 bg-gradient-to-br from-black/60 to-purple-900/40 px-5 py-7 backdrop-blur-md shadow-2xl"
+                style={{ minWidth: sx(220) }}
               >
-                <div className="overlay-title-font mb-2 text-center text-[22px] tracking-[0.05em] text-[#01b4fe]">
+                <div className="overlay-title-font mb-0 text-center text-[30px] tracking-[0.05em] text-[#01b4fe] [text-shadow:-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,1px_1px_0_#000]">
                   START TIME
                 </div>
-                <div className="overlay-digital-font flex items-center justify-center text-[55px] font-bold leading-none text-white whitespace-nowrap">
+                <div className="overlay-digital-font flex items-center justify-center whitespace-nowrap text-[70px] font-bold leading-none text-white [text-shadow:-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,1px_1px_0_#000]">
                   {startTimeLabel}
                 </div>
               </div>
 
-              <div className="overlay-title-font text-[100px] leading-none text-white">
-                -
+              <div className="flex justify-center" style={{ width: sx(180) }}>
+                <Image
+                  src={runningLogo}
+                  alt="Running art"
+                  className="h-auto w-full object-contain"
+                  priority
+                />
               </div>
 
               <div 
-                className="flex flex-col items-center justify-center rounded-[24px] border-[2px] border-white/20 bg-gradient-to-br from-black/60 to-purple-900/40 px-2 py-3 backdrop-blur-md shadow-2xl"
-                style={{ minWidth: sx(500) }}
+                className="flex flex-col items-center justify-center rounded-[24px] border-[3px] border-white/85 bg-gradient-to-br from-black/60 to-purple-900/40 px-0 py-0 backdrop-blur-md shadow-2xl"
+                style={{ minWidth: sx(430) }}
               >
-                <div className="overlay-title-font mb-0 text-[22px] tracking-[0.05em]">
+                <div className="overlay-title-font mb-0 text-[30px] tracking-[0.05em] [text-shadow:-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,1px_1px_0_#000]">
                   <span className="text-[#fba202]">RACE</span>{" "}
                   <span className="text-[#85bd06]">TIME</span>
                 </div>
-                 <div className="flex items-baseline justify-center text-[#FF3D44] [text-shadow:0_0_18px_rgba(255,61,68,0.2),-1px_-1px_0_#fff,1px_-1px_0_#fff,-1px_1px_0_#fff,1px_1px_0_#fff]">
-                   <div className="overlay-digital-font flex items-baseline text-[112px] font-bold leading-none">
-                     <DigitalDigits value={raceClock.hours} />
-                     <span className="mx-1">:</span>
-                     <DigitalDigits value={raceClock.minutes} />
-                     <span className="mx-1">:</span>
-                     <DigitalDigits value={raceClock.seconds} />
-                   </div>
-                   <div className="overlay-digital-font flex items-baseline ml-5 text-[82px] font-bold leading-none opacity-90">
-                     <span className="mr-0">.</span>
-                     <DigitalDigits value={raceClock.centiseconds} />
-                   </div>
-                 </div>
+                <div className="flex items-baseline justify-center text-[#ff2100] [text-shadow:-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,1px_1px_0_#000]">
+                  <div className="overlay-digital-font flex items-baseline text-[112px] font-bold leading-none">
+                    <DigitalDigits value={raceClock.hours} />
+                    <span className="mx-1">:</span>
+                    <DigitalDigits value={raceClock.minutes} />
+                    <span className="mx-1">:</span>
+                    <DigitalDigits value={raceClock.seconds} />
+                  </div>
+                </div>
+                {displaySettings.raceStatus === "ended" ? (
+                  <div className="mt-0 overlay-title-font text-[20px] leading-none text-white">
+                    RUN ENDED
+                  </div>
+                ) : null}
               </div>
             </section>
 

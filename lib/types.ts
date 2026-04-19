@@ -9,6 +9,7 @@ export type CameraConnectionState =
 export type SystemLogLevel = "info" | "success" | "warn" | "error";
 export type ThemeMode = "event-light" | "high-contrast" | "system";
 export type RaceDivision = "male" | "female";
+export type RaceStatus = "idle" | "running" | "ended";
 export type StatusTone =
   | "gradient"
   | "success"
@@ -46,6 +47,9 @@ export interface DashboardSettings {
   soundAlert: boolean;
   themeMode: ThemeMode;
   mockMode: boolean;
+  raceStartTimeIso: string | null;
+  raceEndTimeIso: string | null;
+  raceStatus: RaceStatus;
 }
 
 export interface VideoInputOption {
@@ -74,6 +78,15 @@ export interface LeaderboardEntry {
 export interface LatestRunnerCard {
   id: string;
   division: RaceDivision;
+  bibNumber: string;
+  runnerName: string;
+  finishTime: string;
+}
+
+export interface RecentDivisionFinisher {
+  id: string;
+  division: RaceDivision;
+  sequenceNumber: number;
   bibNumber: string;
   runnerName: string;
   finishTime: string;

@@ -76,8 +76,8 @@ export function SettingsPanel({
               </h2>
               <p className="mt-2 max-w-xl text-sm font-medium text-[#615A66]">
                 Configure event labels, camera source, and operator preferences. These
-                settings are currently stored in local component state and are ready to
-                move into a backend config service later.
+                settings currently persist in browser storage and are ready to move into
+                a backend config service later.
               </p>
             </div>
 

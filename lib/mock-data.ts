@@ -1,18 +1,16 @@
 import type {
   DashboardSessionInfo,
-  DashboardSettings,
   FinisherRecord,
   FinisherSource,
   FinisherStatus,
   LatestRunnerCard,
   LeaderboardEntry,
+  RecentDivisionFinisher,
   SystemLogEntry,
 } from "@/lib/types";
 
 const EVENT_TIME_ZONE = "Asia/Manila";
 const MOCK_REFERENCE_TIME_ISO = "2026-04-18T22:59:56+08:00";
-export const PUBLIC_DISPLAY_START_TIME_ISO = "2026-04-19T04:15:00+08:00";
-
 const timeFormatter = new Intl.DateTimeFormat("en-US", {
   hour: "numeric",
   minute: "2-digit",
@@ -79,16 +77,6 @@ function createLog(
   };
 }
 
-export const initialSettings: DashboardSettings = {
-  eventName: "Community Run 2026",
-  finishLineLabel: "Finish Line",
-  cameraSource: "",
-  autoScrollResults: true,
-  soundAlert: true,
-  themeMode: "event-light",
-  mockMode: true,
-};
-
 export const initialSessionInfo: DashboardSessionInfo = {
   connectionMode: "offline",
   lastDetectionTime: buildTimestamp(14).toISOString(),
@@ -127,7 +115,7 @@ export const publicDisplayLeaderboard: LeaderboardEntry[] = [
     place: 1,
     bibNumber: "0096",
     runnerName: "Cybel",
-    finishTime: "5:04:43 AM",
+    finishTime: "00:49:43",
   },
   {
     id: "male-2",
@@ -135,7 +123,7 @@ export const publicDisplayLeaderboard: LeaderboardEntry[] = [
     place: 2,
     bibNumber: "0192",
     runnerName: "Earl69",
-    finishTime: "5:10:12 AM",
+    finishTime: "00:55:12",
   },
   {
     id: "male-3",
@@ -143,7 +131,7 @@ export const publicDisplayLeaderboard: LeaderboardEntry[] = [
     place: 3,
     bibNumber: "0483",
     runnerName: "XyZ:2",
-    finishTime: "5:19:39 AM",
+    finishTime: "01:04:39",
   },
   {
     id: "female-1",
@@ -151,7 +139,7 @@ export const publicDisplayLeaderboard: LeaderboardEntry[] = [
     place: 1,
     bibNumber: "0201",
     runnerName: "Erika",
-    finishTime: "5:04:43 AM",
+    finishTime: "00:54:18",
   },
   {
     id: "female-2",
@@ -159,7 +147,7 @@ export const publicDisplayLeaderboard: LeaderboardEntry[] = [
     place: 2,
     bibNumber: "0401",
     runnerName: "Diane67",
-    finishTime: "5:10:12 AM",
+    finishTime: "01:00:27",
   },
   {
     id: "female-3",
@@ -167,7 +155,7 @@ export const publicDisplayLeaderboard: LeaderboardEntry[] = [
     place: 3,
     bibNumber: "0391",
     runnerName: "xyza222233",
-    finishTime: "5:19:39 AM",
+    finishTime: "01:09:41",
   },
 ];
 
@@ -177,14 +165,84 @@ export const publicDisplayLatestRunners: LatestRunnerCard[] = [
     division: "male",
     bibNumber: "0138",
     runnerName: "Cybel",
-    finishTime: "5:25:29 AM",
+    finishTime: "01:13:29",
   },
   {
     id: "latest-female",
     division: "female",
     bibNumber: "0012",
     runnerName: "Anna",
-    finishTime: "5:25:29 AM",
+    finishTime: "01:15:04",
+  },
+];
+
+export const publicDisplayRecentMaleFinishers: RecentDivisionFinisher[] = [
+  {
+    id: "recent-male-40",
+    division: "male",
+    sequenceNumber: 40,
+    bibNumber: "0001",
+    runnerName: "Awdaw",
+    finishTime: "01:18:53",
+  },
+  {
+    id: "recent-male-41",
+    division: "male",
+    sequenceNumber: 41,
+    bibNumber: "0032",
+    runnerName: "Daos",
+    finishTime: "01:18:53",
+  },
+  {
+    id: "recent-male-42",
+    division: "male",
+    sequenceNumber: 42,
+    bibNumber: "0412",
+    runnerName: "LeBron",
+    finishTime: "01:20:29",
+  },
+  {
+    id: "recent-male-43",
+    division: "male",
+    sequenceNumber: 43,
+    bibNumber: "0138",
+    runnerName: "Cat93",
+    finishTime: "01:30:21",
+  },
+];
+
+export const publicDisplayRecentFemaleFinishers: RecentDivisionFinisher[] = [
+  {
+    id: "recent-female-28",
+    division: "female",
+    sequenceNumber: 28,
+    bibNumber: "0201",
+    runnerName: "Erika",
+    finishTime: "01:12:14",
+  },
+  {
+    id: "recent-female-29",
+    division: "female",
+    sequenceNumber: 29,
+    bibNumber: "0401",
+    runnerName: "Diane67",
+    finishTime: "01:17:08",
+  },
+  {
+    id: "recent-female-30",
+    division: "female",
+    sequenceNumber: 30,
+    bibNumber: "0391",
+    runnerName: "AnnaMae",
+    finishTime: "01:21:43",
+  },
+  {
+    id: "recent-female-31",
+    division: "female",
+    sequenceNumber: 31,
+    bibNumber: "0012",
+    runnerName: "Anna",
+    finishTime: "01:24:05",
   },
 ];
 
