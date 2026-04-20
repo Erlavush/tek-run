@@ -91,3 +91,42 @@ export interface RecentDivisionFinisher {
   runnerName: string;
   finishTime: string;
 }
+
+export interface MasterlistEntry {
+  bibNumber: string;
+  runnerName: string;
+  division: RaceDivision;
+}
+
+export interface ResultsWorkbookEntry {
+  rowNumber: number;
+  place: number | null;
+  bibNumber: string;
+  finishTimestamp: string | null;
+  finishTimeFromStart: string | null;
+  source: string;
+  confidence: number | null;
+  reviewStatus: string;
+}
+
+export interface PublicDisplayFinisher {
+  id: string;
+  rowNumber: number;
+  place: number | null;
+  bibNumber: string;
+  runnerName: string;
+  division: RaceDivision;
+  finishTimestamp: string | null;
+  finishTimeFromStart: string | null;
+  source: string;
+  confidence: number | null;
+  reviewStatus: string;
+}
+
+export interface PublicDisplayFeed {
+  finishers: PublicDisplayFinisher[];
+  updatedAt: string;
+  masterlistPath: string;
+  resultsPath: string;
+  error?: string;
+}

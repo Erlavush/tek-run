@@ -14,6 +14,7 @@ interface OperatorControlsProps {
   onClear: () => void;
   onEndRaceNow: () => void;
   onLogFinish: () => void;
+  onManualBibBlur: () => void;
   onManualBibChange: (value: string) => void;
   onMarkNeedsReview: () => void;
   onRestartRace: () => void;
@@ -50,6 +51,7 @@ export function OperatorControls({
   onClear,
   onEndRaceNow,
   onLogFinish,
+  onManualBibBlur,
   onManualBibChange,
   onMarkNeedsReview,
   onRestartRace,
@@ -152,7 +154,8 @@ export function OperatorControls({
             className={inputClass}
             placeholder="Enter bib number only"
             value={manualBib}
-            onChange={(event) => onManualBibChange(event.target.value.toUpperCase())}
+            onBlur={onManualBibBlur}
+            onChange={(event) => onManualBibChange(event.target.value)}
           />
           <p className="mt-3 text-sm font-medium text-[#615A66]">
             Use this only when the auto-detection is wrong or unclear.

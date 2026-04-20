@@ -18,6 +18,7 @@ import {
   initialSessionInfo,
   seedFinishers,
 } from "@/lib/mock-data";
+import { normalizeBibNumber } from "@/lib/bib";
 import { formatClock, formatLongDate } from "@/lib/theme";
 import type { DashboardSettings, FinisherStatus } from "@/lib/types";
 
@@ -109,7 +110,7 @@ export function DashboardShell() {
   };
 
   const handleLogFinish = (requestedStatus: FinisherStatus) => {
-    const normalizedBib = manualBib.trim().toUpperCase();
+    const normalizedBib = normalizeBibNumber(manualBib);
 
     if (!normalizedBib || settings.raceStatus !== "running") {
       return;
@@ -117,7 +118,7 @@ export function DashboardShell() {
 
     const timestamp = new Date();
     const duplicateDetected = finishers.some(
-      (finisher) => finisher.bibNumber.toUpperCase() === normalizedBib,
+      (finisher) => normalizeBibNumber(finisher.bibNumber) === normalizedBib,
     );
 
     const finalStatus: FinisherStatus = duplicateDetected ? "duplicate" : requestedStatus;
@@ -210,6 +211,14 @@ export function DashboardShell() {
     setManualBib("");
   };
 
+  const handleManualBibChange = (value: string) => {
+    setManualBib(value.toUpperCase());
+  };
+
+  const handleManualBibBlur = () => {
+    setManualBib((current) => normalizeBibNumber(current));
+  };
+
   return (
     <div data-theme-mode={settings.themeMode} className="relative min-h-screen overflow-hidden">
       <div className="accent-orbit left-10 top-16 h-52 w-52 bg-[#4C05E4]" />
@@ -255,7 +264,8 @@ export function DashboardShell() {
               onClear={() => setManualBib("")}
               onEndRaceNow={handleRaceEndNow}
               onLogFinish={() => handleLogFinish("verified")}
-              onManualBibChange={setManualBib}
+              onManualBibBlur={handleManualBibBlur}
+              onManualBibChange={handleManualBibChange}
               onMarkNeedsReview={() => handleLogFinish("needs review")}
               onRestartRace={handleRestartRace}
               onStartRaceNow={handleRaceStartNow}

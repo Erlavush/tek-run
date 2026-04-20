@@ -14,13 +14,10 @@ import {
   defaultDashboardSettings,
   readDashboardSettings,
 } from "@/lib/dashboard-settings";
-import {
-  publicDisplayLeaderboard,
-  publicDisplayRecentFemaleFinishers,
-  publicDisplayRecentMaleFinishers,
-} from "@/lib/mock-data";
 import type {
   LeaderboardEntry,
+  PublicDisplayFeed,
+  PublicDisplayFinisher,
   RaceDivision,
   RecentDivisionFinisher,
 } from "@/lib/types";
@@ -97,6 +94,205 @@ function getRaceClockReferenceTime(
   }
 
   return null;
+}
+
+function createEmptyFeed(): PublicDisplayFeed {
+  return {
+    finishers: [],
+    masterlistPath: "",
+    resultsPath: "",
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function formatElapsedTime(elapsedMs: number) {
+  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+  const hours = Math.floor(totalSeconds / 3600)
+    .toString()
+    .padStart(2, "0");
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+
+  return `${hours}:${minutes}:${seconds}`;
+}
+
+function isClockTimeString(value: string) {
+  return /^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM|A\.M\.|P\.M\.)?$/i.test(value.trim());
+}
+
+function parseComparableTimeValue(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const parsedDate = new Date(value);
+
+  if (!Number.isNaN(parsedDate.getTime())) {
+    return parsedDate.getTime();
+  }
+
+  const match = value
+    .trim()
+    .match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM|A\.M\.|P\.M\.)?$/i);
+
+  if (!match) {
+    return null;
+  }
+
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const seconds = Number(match[3] ?? "0");
+  const meridiem = match[4]?.replace(/\./g, "").toUpperCase() ?? null;
+
+  if (meridiem === "AM" && hours === 12) {
+    hours = 0;
+  } else if (meridiem === "PM" && hours < 12) {
+    hours += 12;
+  }
+
+  return ((hours * 60 + minutes) * 60 + seconds) * 1000;
+}
+
+function getComparableRaceTime(finisher: PublicDisplayFinisher) {
+  const elapsedTime = parseComparableTimeValue(finisher.finishTimeFromStart);
+
+  if (elapsedTime !== null) {
+    return elapsedTime;
+  }
+
+  return parseComparableTimeValue(finisher.finishTimestamp);
+}
+
+function formatFinishTimeLabel(
+  finisher: PublicDisplayFinisher,
+  raceStartTimeIso: string | null,
+) {
+  if (finisher.finishTimeFromStart) {
+    return finisher.finishTimeFromStart;
+  }
+
+  if (finisher.finishTimestamp) {
+    const parsedFinishTime = new Date(finisher.finishTimestamp);
+
+    if (!Number.isNaN(parsedFinishTime.getTime())) {
+      if (raceStartTimeIso) {
+        const parsedStartTime = new Date(raceStartTimeIso);
+
+        if (!Number.isNaN(parsedStartTime.getTime())) {
+          return formatElapsedTime(parsedFinishTime.getTime() - parsedStartTime.getTime());
+        }
+      }
+    }
+
+    if (isClockTimeString(finisher.finishTimestamp)) {
+      return finisher.finishTimestamp;
+    }
+  }
+
+  return "--:--:--";
+}
+
+function compareFinishersByRaceTime(
+  left: PublicDisplayFinisher,
+  right: PublicDisplayFinisher,
+) {
+  const leftRaceTime = getComparableRaceTime(left);
+  const rightRaceTime = getComparableRaceTime(right);
+
+  if (leftRaceTime === null && rightRaceTime === null) {
+    return left.rowNumber - right.rowNumber;
+  }
+
+  if (leftRaceTime === null) {
+    return 1;
+  }
+
+  if (rightRaceTime === null) {
+    return -1;
+  }
+
+  if (leftRaceTime !== rightRaceTime) {
+    return leftRaceTime - rightRaceTime;
+  }
+
+  const leftFinishTimestamp = parseComparableTimeValue(left.finishTimestamp);
+  const rightFinishTimestamp = parseComparableTimeValue(right.finishTimestamp);
+
+  if (leftFinishTimestamp !== null || rightFinishTimestamp !== null) {
+    if (leftFinishTimestamp === null) {
+      return 1;
+    }
+
+    if (rightFinishTimestamp === null) {
+      return -1;
+    }
+
+    if (leftFinishTimestamp !== rightFinishTimestamp) {
+      return leftFinishTimestamp - rightFinishTimestamp;
+    }
+  }
+
+  return left.rowNumber - right.rowNumber;
+}
+
+function createDivisionRankMap(
+  finishers: PublicDisplayFinisher[],
+  division: RaceDivision,
+) {
+  return new Map(
+    finishers
+      .filter((finisher) => finisher.division === division)
+      .sort(compareFinishersByRaceTime)
+      .map((finisher, index) => [finisher.id, index + 1]),
+  );
+}
+
+function buildLeaderboardEntries(
+  finishers: PublicDisplayFinisher[],
+  division: RaceDivision,
+  raceStartTimeIso: string | null,
+) {
+  const divisionRanks = createDivisionRankMap(finishers, division);
+
+  return finishers
+    .filter((finisher) => finisher.division === division)
+    .sort(compareFinishersByRaceTime)
+    .slice(0, 3)
+    .map(
+      (finisher): LeaderboardEntry => ({
+        id: finisher.id,
+        division,
+        place: divisionRanks.get(finisher.id) ?? 0,
+        bibNumber: finisher.bibNumber,
+        runnerName: finisher.runnerName,
+        finishTime: formatFinishTimeLabel(finisher, raceStartTimeIso),
+      }),
+    );
+}
+
+function buildRecentFinishers(
+  finishers: PublicDisplayFinisher[],
+  division: RaceDivision,
+  raceStartTimeIso: string | null,
+) {
+  const divisionRanks = createDivisionRankMap(finishers, division);
+
+  return finishers
+    .filter((finisher) => finisher.division === division)
+    .sort((left, right) => left.rowNumber - right.rowNumber)
+    .slice(-4)
+    .map(
+      (finisher): RecentDivisionFinisher => ({
+        id: finisher.id,
+        division,
+        sequenceNumber: divisionRanks.get(finisher.id) ?? 0,
+        bibNumber: finisher.bibNumber,
+        runnerName: finisher.runnerName,
+        finishTime: formatFinishTimeLabel(finisher, raceStartTimeIso),
+      }),
+    );
 }
 
 function PedestalIcon() {
@@ -206,6 +402,11 @@ function LeaderboardSection({
       </div>
 
       <div className="space-y-[6px]">
+        {entries.length === 0 ? (
+          <div className="rounded-[14px] border border-dashed border-white/18 bg-black/10 px-4 py-5 text-center text-[12px] font-bold uppercase tracking-[0.24em] text-white/70">
+            Awaiting finishers
+          </div>
+        ) : null}
         {entries.map((entry) => {
           const rankStyles =
             entry.place === 1
@@ -358,6 +559,12 @@ function RecentDivisionPanel({
       </div>
       <div className="mx-auto mt-3 h-[2px] rounded-full bg-white/16" style={{ width: "88%" }} />
 
+      {entries.length === 0 ? (
+        <div className="flex flex-1 items-center justify-center px-3 text-center text-[12px] font-bold uppercase tracking-[0.22em] text-white/72">
+          No finishers yet
+        </div>
+      ) : null}
+
       <div className="mt-3 space-y-2">
         {historyEntries.map((entry) => (
           <div
@@ -427,6 +634,7 @@ export function PublicDisplayScreen() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stageScale, setStageScale] = useState(1);
   const [displaySettings, setDisplaySettings] = useState(defaultDashboardSettings);
+  const [publicFeed, setPublicFeed] = useState<PublicDisplayFeed>(createEmptyFeed);
 
   useEffect(() => {
     void camera.startCamera();
@@ -490,20 +698,75 @@ export function PublicDisplayScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadFeed = async () => {
+      try {
+        const response = await fetch("/api/public-display", {
+          cache: "no-store",
+        });
+        const nextFeed = (await response.json()) as PublicDisplayFeed;
+
+        if (!isMounted) {
+          return;
+        }
+
+        setPublicFeed(nextFeed);
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+
+        setPublicFeed((current) => ({
+          ...current,
+          error: "Unable to refresh workbook data.",
+          updatedAt: new Date().toISOString(),
+        }));
+      }
+    };
+
+    void loadFeed();
+    const intervalId = window.setInterval(() => {
+      void loadFeed();
+    }, 1000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
   const leaderboardByDivision = useMemo(
     () => ({
-      male: publicDisplayLeaderboard.filter((entry) => entry.division === "male"),
-      female: publicDisplayLeaderboard.filter((entry) => entry.division === "female"),
+      male: buildLeaderboardEntries(
+        publicFeed.finishers,
+        "male",
+        displaySettings.raceStartTimeIso,
+      ),
+      female: buildLeaderboardEntries(
+        publicFeed.finishers,
+        "female",
+        displaySettings.raceStartTimeIso,
+      ),
     }),
-    [],
+    [displaySettings.raceStartTimeIso, publicFeed.finishers],
   );
 
   const recentFinishersByDivision = useMemo(
     () => ({
-      male: publicDisplayRecentMaleFinishers,
-      female: publicDisplayRecentFemaleFinishers,
+      male: buildRecentFinishers(
+        publicFeed.finishers,
+        "male",
+        displaySettings.raceStartTimeIso,
+      ),
+      female: buildRecentFinishers(
+        publicFeed.finishers,
+        "female",
+        displaySettings.raceStartTimeIso,
+      ),
     }),
-    [],
+    [displaySettings.raceStartTimeIso, publicFeed.finishers],
   );
 
   const startTimeLabel = useMemo(
@@ -546,21 +809,55 @@ export function PublicDisplayScreen() {
     [stageScale],
   );
 
+  const layout = useMemo(() => {
+    const stageRight = BASE_STAGE_WIDTH - 30;
+    const gap = 30;
+    const camera = {
+      left: 20,
+      top: 50,
+      width: 900,
+      height: 680,
+    };
+    const leaderboard = {
+      left: camera.left + camera.width + gap,
+      top: 55,
+      width: stageRight - (camera.left + camera.width + gap),
+      height: 492,
+    };
+    const recent = {
+      left: leaderboard.left - 8,
+      top: leaderboard.top + leaderboard.height + 1,
+      width: leaderboard.width + 10,
+    };
+    const bottom = {
+      left: camera.left,
+      top: camera.top + camera.height + 10,
+      width: camera.width,
+    };
+
+    return {
+      camera,
+      leaderboard,
+      recent,
+      bottom,
+    };
+  }, []);
+
   return (
     <div className="festival-display-background relative min-h-screen overflow-hidden">
       <main className="absolute inset-0 overflow-hidden">
         <div
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+          className="absolute left-1/2 top-[48%] -translate-x-1/2 -translate-y-1/2"
           style={stageFrameStyle}
         >
           <div className="relative h-full w-full" style={scaledStageStyle}>
             <section
               className="absolute overflow-hidden rounded-[25px] bg-black border-[4px] border-white"
               style={{
-                left: sx(30),
-                top: sy(50),
-                width: sx(890),
-                height: sy(640),
+                left: sx(layout.camera.left),
+                top: sy(layout.camera.top),
+                width: sx(layout.camera.width),
+                height: sy(layout.camera.height),
               }}
               onClick={() => {
                 if (!camera.stream) {
@@ -589,7 +886,7 @@ export function PublicDisplayScreen() {
 
             <div
               className="pointer-events-none absolute z-[15]"
-              style={{ left: sx(240), top: sy(-57), width: sx(470) }}
+              style={{ left: sx(260), top: sy(-40), width: sx(420) }}
             >
               <Image
                 src={ccommunifestLogo}
@@ -614,10 +911,10 @@ export function PublicDisplayScreen() {
             <aside
               className="absolute z-[5] flex flex-col overflow-hidden rounded-[24px] border-[3px] border-white/85 bg-[linear-gradient(180deg,rgba(18,22,32,0.58)_0%,rgba(29,22,46,0.46)_100%)] px-[20px] py-[18px] backdrop-blur-md shadow-2xl"
               style={{
-                left: sx(950),
-                top: sy(55),
-                width: sx(300),
-                height: sy(492),
+                left: sx(layout.leaderboard.left),
+                top: sy(layout.leaderboard.top),
+                width: sx(layout.leaderboard.width),
+                height: sy(layout.leaderboard.height),
               }}
             >
               <div className="overlay-title-font mb-[8px] flex items-center justify-center gap-[8px] text-[30px] leading-none text-white [text-shadow:-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,1px_1px_0_#000]">
@@ -642,7 +939,11 @@ export function PublicDisplayScreen() {
 
             <section
               className="absolute z-[5]"
-              style={{ left: sx(942), top: sy(548), width: sx(310) }}
+              style={{
+                left: sx(layout.recent.left),
+                top: sy(layout.recent.top),
+                width: sx(layout.recent.width),
+              }}
             >
               <h2 className="overlay-title-font flex w-full items-baseline justify-center gap-1 text-center text-[26px] leading-none text-white [text-shadow:-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,1px_1px_0_#000]">
                 <span className="text-[52px]">R</span>ECENT <span className="text-[50px] ml-5">F</span>INISHERS
@@ -663,20 +964,19 @@ export function PublicDisplayScreen() {
             <section
               className="absolute z-[5] flex items-center justify-between"
               style={{
-                left: sx(30),
-                top: sy(700),
-                width: sx(890),
-                
+                left: sx(layout.bottom.left),
+                top: sy(layout.bottom.top),
+                width: sx(layout.bottom.width),
               }}
             >
               <div 
-                className="flex flex-col items-center justify-center rounded-[24px] border-[3px] border-white/85 bg-gradient-to-br from-black/60 to-purple-900/40 px-5 py-7 backdrop-blur-md shadow-2xl"
-                style={{ minWidth: sx(220) }}
+                className="flex flex-col items-center justify-center rounded-[24px] border-[3px] border-white/85 bg-gradient-to-br from-black/60 to-purple-900/40 px-0 py-5 backdrop-blur-md shadow-2xl"
+                style={{ minWidth: sx(240), marginTop: sy(-16) }}
               >
-                <div className="overlay-title-font mb-0 text-center text-[30px] tracking-[0.05em] text-[#01b4fe] [text-shadow:-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,1px_1px_0_#000]">
+                <div className="overlay-title-font mb-0 text-center text-[25px] tracking-[0.05em] text-[#01b4fe] [text-shadow:-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,1px_1px_0_#000]">
                   START TIME
                 </div>
-                <div className="overlay-digital-font flex items-center justify-center whitespace-nowrap text-[70px] font-bold leading-none text-white [text-shadow:-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,1px_1px_0_#000]">
+                <div className="overlay-digital-font flex items-center justify-center whitespace-nowrap text-[65px] font-bold leading-none text-white [text-shadow:-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,1px_1px_0_#000]">
                   {startTimeLabel}
                 </div>
               </div>
@@ -692,14 +992,16 @@ export function PublicDisplayScreen() {
 
               <div 
                 className="flex flex-col items-center justify-center rounded-[24px] border-[3px] border-white/85 bg-gradient-to-br from-black/60 to-purple-900/40 px-0 py-0 backdrop-blur-md shadow-2xl"
-                style={{ minWidth: sx(430) }}
+                style={{ minWidth: sx(430), paddingTop: sy(0), paddingBottom: sy(0), marginTop: sy(-16) }}
               >
                 <div className="overlay-title-font mb-0 text-[30px] tracking-[0.05em] [text-shadow:-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,1px_1px_0_#000]">
                   <span className="text-[#fba202]">RACE</span>{" "}
                   <span className="text-[#85bd06]">TIME</span>
                 </div>
-                <div className="flex items-baseline justify-center text-[#ff2100] [text-shadow:-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,1px_1px_0_#000]">
-                  <div className="overlay-digital-font flex items-baseline text-[112px] font-bold leading-none">
+                <div className="flex items-baseline justify-center text-[#ff2100] [text-shadow:-1px_-1px_0_#fff,1px_-1px_0_#fff,-1px_1px_0_#fff,1px_1px_0_#fff]"
+                style={{ marginTop: sy(-10) }}
+                >
+                  <div className="overlay-digital-font flex items-baseline text-[99px] font-bold leading-none">
                     <DigitalDigits value={raceClock.hours} />
                     <span className="mx-1">:</span>
                     <DigitalDigits value={raceClock.minutes} />

@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8a67ff" />
+      <stop offset="100%" stop-color="#4d6fe8" />
+    </linearGradient>
+
+    <!-- Ribbon Gradient -->
+    <linearGradient id="ribbonGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#9bcc25" />
+      <stop offset="50%" stop-color="#69e54e" />
+      <stop offset="100%" stop-color="#a0f056" />
+    </linearGradient>
+
+    <!-- Base Runner Template (Used 3 times) -->
+    <g id="runner-template">
+      <!-- Back Arm -->
+      <path class="arm-back" d="M 25,-70 Q -20,-40 -40,-10" fill="none" stroke="var(--color-dark)" stroke-width="26" stroke-linecap="round" />
+      
+      <!-- Back Leg -->
+      <path class="leg-back" d="M 0,0 Q -40,30 -70,60" fill="none" stroke="var(--color-dark)" stroke-width="32" stroke-linecap="round" />
+      
+      <!-- Torso -->
+      <path class="torso" d="M 0,0 Q 10,-40 25,-70" fill="none" stroke="var(--color-light)" stroke-width="35" stroke-linecap="round" />
+      
+      <!-- Front Arm -->
+      <path class="arm-front" d="M 25,-70 Q 70,-30 110,-40" fill="none" stroke="var(--color-light)" stroke-width="26" stroke-linecap="round" />
+      
+      <!-- Front Leg -->
+      <path class="leg-front" d="M 0,0 Q 40,50 30,110" fill="none" stroke="var(--color-light)" stroke-width="32" stroke-linecap="round" />
+      
+      <!-- Head -->
+      <circle cx="45" cy="-125" r="22" fill="var(--color-dark)" />
+    </g>
+  </defs>
+
+  <style>
+    /* Animation Keyframes */
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-20px); }
+    }
+    @keyframes leg-swing-front {
+      0% { transform: rotate(-45deg); }
+      100% { transform: rotate(50deg); }
+    }
+    @keyframes leg-swing-back {
+      0% { transform: rotate(50deg); }
+      100% { transform: rotate(-45deg); }
+    }
+    @keyframes arm-swing-front {
+      0% { transform: rotate(55deg); }
+      100% { transform: rotate(-45deg); }
+    }
+    @keyframes arm-swing-back {
+      0% { transform: rotate(-45deg); }
+      100% { transform: rotate(55deg); }
+    }
+    @keyframes ribbon-wave {
+      0%, 100% { transform: translateY(0px) scaleY(1); }
+      50% { transform: translateY(8px) scaleY(1.05); }
+    }
+
+    /* Applying Animations */
+    .runner-group {
+      animation: bounce 0.6s infinite alternate ease-in-out;
+    }
+    .leg-front {
+      transform-origin: 0px 0px;
+      animation: leg-swing-front 0.6s infinite alternate ease-in-out;
+    }
+    .leg-back {
+      transform-origin: 0px 0px;
+      animation: leg-swing-back 0.6s infinite alternate ease-in-out;
+    }
+    .arm-front {
+      transform-origin: 25px -70px;
+      animation: arm-swing-front 0.6s infinite alternate ease-in-out;
+    }
+    .arm-back {
+      transform-origin: 25px -70px;
+      animation: arm-swing-back 0.6s infinite alternate ease-in-out;
+    }
+    .ribbon {
+      animation: ribbon-wave 2s infinite alternate ease-in-out;
+    }
+
+    /* Staggering the animation delays so they aren't perfectly synced */
+    .blue-runner, .blue-runner * { animation-delay: -0.4s !important; }
+    .yellow-runner, .yellow-runner * { animation-delay: -0.2s !important; }
+    .red-runner, .red-runner * { animation-delay: 0s !important; }
+  </style>
+
+  <!-- Background -->
+  <rect width="100%" height="100%" fill="url(#bgGrad)" />
+
+  <!-- Back part of the ribbon -->
+  <path class="ribbon" d="M -100,350 Q 150,450 400,320" fill="none" stroke="url(#ribbonGrad)" stroke-width="35" stroke-linecap="round" />
+
+  <!-- Blue Runner (Back/Left) -->
+  <g transform="translate(300, 300) scale(0.85)" class="blue-runner" style="--color-light: #2d8cff; --color-dark: #003078;">
+    <use href="#runner-template" class="runner-group" />
+  </g>
+
+  <!-- Yellow Runner (Middle) -->
+  <g transform="translate(500, 320) scale(0.95)" class="yellow-runner" style="--color-light: #ffd400; --color-dark: #ff7b00;">
+    <use href="#runner-template" class="runner-group" />
+  </g>
+
+  <!-- Front part of the ribbon (Crosses in front of Blue & Yellow, behind Red's arm) -->
+  <path class="ribbon" d="M 300,350 Q 550,250 1100,220" fill="none" stroke="url(#ribbonGrad)" stroke-width="40" stroke-linecap="round" />
+
+  <!-- Red/Pink Runner (Front/Right) -->
+  <!-- Placed after the ribbon so it appears closest to the viewer -->
+  <g transform="translate(730, 340) scale(1.1)" class="red-runner" style="--color-light: #ff7584; --color-dark: #cc0000;">
+    <use href="#runner-template" class="runner-group" />
+  </g>
+
+</svg>
