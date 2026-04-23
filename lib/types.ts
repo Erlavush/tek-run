@@ -208,6 +208,7 @@ export interface FinisherReviewUpdatePayload {
   runnerName: string;
   division: RaceDivision | null;
   reviewStatus: ReviewStatus;
+  elapsedRaceTime?: string;
 }
 
 export interface FinisherReviewUpdateResponse {

@@ -735,6 +735,20 @@ export async function updateFinisherReview(
     reviewStatus: nextReviewStatus,
   };
 
+  if (payload.elapsedRaceTime) {
+    const timeMatch = payload.elapsedRaceTime.trim().match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+
+    if (timeMatch) {
+      const hours = Number(timeMatch[1]);
+      const minutes = Number(timeMatch[2]);
+      const seconds = Number(timeMatch[3]);
+
+      if (minutes < 60 && seconds < 60) {
+        nextEntry.elapsedSeconds = hours * 3600 + minutes * 60 + seconds;
+      }
+    }
+  }
+
   await finisherRef.set(nextEntry);
   const nextRace = await syncRaceCounts(db);
 

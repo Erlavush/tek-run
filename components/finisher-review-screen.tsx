@@ -19,6 +19,7 @@ interface ReviewDraft {
   runnerName: string;
   division: "" | RaceDivision;
   reviewStatus: ReviewStatus;
+  elapsedRaceTime: string;
 }
 
 function createEmptyFeed(): FinisherReviewFeed {
@@ -48,6 +49,7 @@ function createDraft(entry: FinisherReviewRecord | null): ReviewDraft {
       runnerName: "",
       division: "",
       reviewStatus: "needs review",
+      elapsedRaceTime: "00:00:00",
     };
   }
 
@@ -56,6 +58,7 @@ function createDraft(entry: FinisherReviewRecord | null): ReviewDraft {
     runnerName: entry.runnerName ?? "",
     division: entry.division ?? "",
     reviewStatus: entry.reviewStatus,
+    elapsedRaceTime: entry.elapsedRaceTime,
   };
 }
 
@@ -186,6 +189,7 @@ export function FinisherReviewScreen() {
         runnerName: draft.runnerName,
         division: draft.division || null,
         reviewStatus: statusOverride ?? draft.reviewStatus,
+        elapsedRaceTime: draft.elapsedRaceTime,
       };
 
       const response = await fetch(`/api/finishers/${selectedEntry.id}`, {
@@ -452,6 +456,21 @@ export function FinisherReviewScreen() {
                         }
                         className="w-full rounded-[18px] border border-black bg-white px-4 py-3 text-lg font-bold outline-none"
                       />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.28em] text-black/55">
+                        Elapsed Time
+                      </label>
+                      <input
+                        value={draft.elapsedRaceTime}
+                        onChange={(event) =>
+                          setDraft((current) => ({ ...current, elapsedRaceTime: event.target.value }))
+                        }
+                        placeholder="00:00:00"
+                        className="w-full rounded-[18px] border border-black bg-white px-4 py-3 text-lg font-extrabold tracking-wider outline-none font-[family-name:var(--font-mono,monospace)]"
+                      />
+                      <p className="mt-1.5 text-[10px] font-bold text-black/40">Format: HH:MM:SS — this changes leaderboard ranking</p>
                     </div>
 
                     <div className="grid gap-5 md:grid-cols-2">
