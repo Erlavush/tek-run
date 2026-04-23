@@ -1,6 +1,8 @@
 node_modules/
 .next/
 out/
+.env
+.env.*
 
 *.log
 .codex-next-dev.log
@@ -12,3 +14,11 @@ public-display-current.png
 .DS_Store
 Thumbs.db
 ~$*.xlsx
+
+.vercel
+.tools/
+.codex_excel/
+outputs/
+tmp-*.png
+tmp_*.tsv
+tsconfig.tsbuildinfo

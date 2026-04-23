@@ -9,22 +9,22 @@ import type {
 } from "@/lib/types";
 
 export const primaryButtonClass =
-  "inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-[#4C05E4] to-[#A00063] px-4 py-3 text-sm font-semibold text-white shadow-[0_20px_40px_-24px_rgba(76,5,228,0.9)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_44px_-24px_rgba(76,5,228,0.75)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#4C05E4]/15 disabled:pointer-events-none disabled:opacity-45";
+  "inline-flex items-center justify-center rounded-2xl border border-black bg-black px-4 py-3 text-sm font-semibold text-white transition duration-200 hover:bg-white hover:text-black focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-black/10 disabled:pointer-events-none disabled:opacity-45";
 
 export const secondaryButtonClass =
-  "inline-flex items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-[#1F1F1F] ring-1 ring-[#1F1F1F]/10 transition duration-200 hover:-translate-y-0.5 hover:bg-[#F7F7F7] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#4C05E4]/12 disabled:pointer-events-none disabled:opacity-45";
+  "inline-flex items-center justify-center rounded-2xl border border-black bg-white px-4 py-3 text-sm font-semibold text-black transition duration-200 hover:bg-black hover:text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-black/10 disabled:pointer-events-none disabled:opacity-45";
 
 export const subtleButtonClass =
-  "inline-flex items-center justify-center rounded-2xl bg-[#ECECEC] px-4 py-3 text-sm font-semibold text-[#1F1F1F] ring-1 ring-transparent transition duration-200 hover:bg-[#E7E7E7] hover:ring-[#4C05E4]/12 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#4C05E4]/10 disabled:pointer-events-none disabled:opacity-45";
+  "inline-flex items-center justify-center rounded-2xl border border-black bg-[#f2f2f2] px-4 py-3 text-sm font-semibold text-black transition duration-200 hover:bg-black hover:text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-black/10 disabled:pointer-events-none disabled:opacity-45";
 
 export const inputClass =
-  "w-full rounded-2xl border border-[#1F1F1F]/10 bg-white px-4 py-3 text-sm font-semibold text-[#1F1F1F] outline-none transition placeholder:text-[#7C7C7C] focus:border-[#7701A6]/35 focus:ring-4 focus:ring-[#4C05E4]/10";
+  "w-full rounded-2xl border border-black bg-white px-4 py-3 text-sm font-semibold text-black outline-none transition placeholder:text-black/45 focus:ring-4 focus:ring-black/10";
 
 export const labelClass =
-  "mb-2 block text-[11px] font-bold uppercase tracking-[0.28em] text-[#6D6379]";
+  "mb-2 block text-[11px] font-bold uppercase tracking-[0.28em] text-black/55";
 
 export const sectionTitleClass =
-  "font-[family-name:var(--font-display)] text-xl font-extrabold tracking-tight text-[#1F1F1F]";
+  "font-[family-name:var(--font-display)] text-xl font-extrabold tracking-tight text-black";
 
 export const sourceConfig: Record<
   FinisherSource,
@@ -71,7 +71,7 @@ export const cameraStateConfig: Record<
   }
 > = {
   connected: { label: "Connected", tone: "success" },
-  disconnected: { label: "Disconnected", tone: "neutral" },
+  disconnected: { label: "Disconnected", tone: "danger" },
   denied: { label: "Permission Denied", tone: "danger" },
   unsupported: { label: "Unsupported", tone: "warning" },
 };
@@ -142,7 +142,7 @@ export function formatLongDate(date: Date | null) {
 
 export function formatNullableTime(value: string | null | undefined) {
   if (!value) {
-    return "No detection yet";
+    return "No timestamp yet";
   }
 
   return new Intl.DateTimeFormat("en-US", {

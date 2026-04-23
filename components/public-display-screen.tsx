@@ -1,19 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ccommunifestLogo from "@/ccommunifest-logo.png";
 import communityRunLogo from "@/community-run-logo.png";
 import leaderboardLogo from "@/lb-logo.png";
 import runningLogo from "@/running-logo.png";
-import { useCamera } from "@/hooks/use-camera";
+import { useFirebaseRealtime } from "@/hooks/use-firebase-realtime";
+import { useLivekitSubscriber } from "@/hooks/use-livekit-subscriber";
 import { useLocalTime } from "@/hooks/use-local-time";
-import {
-  DASHBOARD_SETTINGS_STORAGE_KEY,
-  DASHBOARD_SETTINGS_UPDATED_EVENT,
-  defaultDashboardSettings,
-  readDashboardSettings,
-} from "@/lib/dashboard-settings";
+import { getEffectiveVideoPublishStatus, isVideoHeartbeatExpired } from "@/lib/video-state";
 import type {
   LeaderboardEntry,
   PublicDisplayFeed,
@@ -38,19 +34,45 @@ function sy(value: number) {
   return value * STAGE_Y_RATIO;
 }
 
+function createEmptyFeed(): PublicDisplayFeed {
+  return {
+    finishers: [],
+    race: {
+      id: "active-event",
+      eventName: "Community Run 2026",
+      raceStatus: "idle",
+      raceStartTimeIso: null,
+      raceEndTimeIso: null,
+      updatedAt: new Date().toISOString(),
+    },
+    video: {
+      eventId: "active-event",
+      activeSourceSlot: null,
+      activeSourceLabel: null,
+      publishStatus: "idle",
+      updatedAt: new Date().toISOString(),
+      lastHeartbeat: null,
+    },
+    masterlistPath: "",
+    resultsPath: "",
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 function formatStartTime(value: string | null) {
   if (!value) {
     return "--:--";
   }
 
-  const formatted = new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
     timeZone: DISPLAY_TIME_ZONE,
-  }).format(new Date(value));
-
-  return formatted.replace("AM", "A.M.").replace("PM", "P.M.");
+  })
+    .format(new Date(value))
+    .replace("AM", "A.M.")
+    .replace("PM", "P.M.");
 }
 
 function formatRaceClock(value: Date | null, startTimeIso: string | null) {
@@ -82,7 +104,7 @@ function formatRaceClock(value: Date | null, startTimeIso: string | null) {
 
 function getRaceClockReferenceTime(
   localTime: Date | null,
-  raceStatus: "idle" | "running" | "ended",
+  raceStatus: PublicDisplayFeed["race"]["raceStatus"],
   raceEndTimeIso: string | null,
 ) {
   if (raceStatus === "ended" && raceEndTimeIso) {
@@ -94,15 +116,6 @@ function getRaceClockReferenceTime(
   }
 
   return null;
-}
-
-function createEmptyFeed(): PublicDisplayFeed {
-  return {
-    finishers: [],
-    masterlistPath: "",
-    resultsPath: "",
-    updatedAt: new Date().toISOString(),
-  };
 }
 
 function formatElapsedTime(elapsedMs: number) {
@@ -176,13 +189,11 @@ function formatFinishTimeLabel(
   if (finisher.finishTimestamp) {
     const parsedFinishTime = new Date(finisher.finishTimestamp);
 
-    if (!Number.isNaN(parsedFinishTime.getTime())) {
-      if (raceStartTimeIso) {
-        const parsedStartTime = new Date(raceStartTimeIso);
+    if (!Number.isNaN(parsedFinishTime.getTime()) && raceStartTimeIso) {
+      const parsedStartTime = new Date(raceStartTimeIso);
 
-        if (!Number.isNaN(parsedStartTime.getTime())) {
-          return formatElapsedTime(parsedFinishTime.getTime() - parsedStartTime.getTime());
-        }
+      if (!Number.isNaN(parsedStartTime.getTime())) {
+        return formatElapsedTime(parsedFinishTime.getTime() - parsedStartTime.getTime());
       }
     }
 
@@ -295,63 +306,11 @@ function buildRecentFinishers(
     );
 }
 
-function PedestalIcon() {
-  return (
-    <svg width="40" height="35" viewBox="0 0 50 40" aria-hidden="true">
-      <path
-        d="M 22 12 L 32 7 L 42 12 L 32 17 Z"
-        fill="#FFF"
-        stroke="#FFF"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M 22 12 L 22 27 L 32 32 L 32 17 Z"
-        fill="#FFF"
-        stroke="#FFF"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M 42 12 L 42 27 L 32 32 L 32 17 Z"
-        fill="#FFF"
-        stroke="#FFF"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <text
-        x="32"
-        y="26"
-        fill="#FFF"
-        fontSize="14"
-        fontFamily="var(--font-festival-title)"
-        textAnchor="middle"
-      >
-        1
-      </text>
-      <path
-        d="M 12 22 L 22 17 L 32 22 L 22 27 Z"
-        fill="#FFF"
-        stroke="#FFF"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M 12 22 L 12 32 L 22 37 L 22 27 Z"
-        fill="#FFF"
-        stroke="#FFF"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function DigitalDigits({ value, className }: { value: string; className?: string }) {
   return (
-    <span className={`inline-flex ${className}`}>
-      {value.split("").map((char, i) => (
-        <span key={i} className="inline-block w-[0.5em] text-center">
+    <span className={`inline-flex ${className ?? ""}`}>
+      {value.split("").map((char, index) => (
+        <span key={index} className="inline-block w-[0.5em] text-center">
           {char}
         </span>
       ))}
@@ -383,6 +342,65 @@ function MedalIcon({ place }: { place: number }) {
         {place}
       </text>
     </svg>
+  );
+}
+
+function AutoFitText({
+  text,
+  className,
+  maxFontSize,
+  minFontSize,
+}: {
+  text: string;
+  className?: string;
+  maxFontSize: number;
+  minFontSize: number;
+}) {
+  const textRef = useRef<HTMLDivElement>(null);
+  const [fontSize, setFontSize] = useState(maxFontSize);
+
+  useEffect(() => {
+    const element = textRef.current;
+    if (!element) {
+      return;
+    }
+
+    let frameId = 0;
+
+    const fitText = () => {
+      let nextFontSize = maxFontSize;
+      element.style.fontSize = `${nextFontSize}px`;
+
+      while (nextFontSize > minFontSize && element.scrollWidth > element.clientWidth) {
+        nextFontSize -= 0.5;
+        element.style.fontSize = `${nextFontSize}px`;
+      }
+
+      setFontSize(nextFontSize);
+    };
+
+    const scheduleFit = () => {
+      cancelAnimationFrame(frameId);
+      frameId = requestAnimationFrame(fitText);
+    };
+
+    scheduleFit();
+
+    const observer = new ResizeObserver(() => {
+      scheduleFit();
+    });
+    observer.observe(element);
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      observer.disconnect();
+    };
+  }, [maxFontSize, minFontSize, text]);
+
+  return (
+    <div ref={textRef} className={className} style={{ fontSize: `${fontSize}px` }}>
+      {text}
+    </div>
   );
 }
 
@@ -439,7 +457,7 @@ function LeaderboardSection({
                   <MedalIcon place={entry.place} />
                 </div>
               </div>
-              <div className="flex items-baseline min-w-0 [text-shadow:0_2px_6px_rgba(0,0,0,0.55)]">
+              <div className="flex min-w-0 items-baseline [text-shadow:0_2px_6px_rgba(0,0,0,0.55)]">
                 <span
                   className="overlay-script-font mr-1 shrink-0 whitespace-nowrap text-[25px] leading-none"
                   style={outlinedRankTextStyle}
@@ -459,7 +477,7 @@ function LeaderboardSection({
                   {entry.runnerName}
                 </span>
               </div>
-              <div className="overlay-time-font justify-self-end text-right text-[15px] font-bold leading-none text-white whitespace-nowrap [text-shadow:0_2px_6px_rgba(0,0,0,0.55)]">
+              <div className="overlay-time-font justify-self-end whitespace-nowrap text-right text-[15px] font-bold leading-none text-white [text-shadow:0_2px_6px_rgba(0,0,0,0.55)]">
                 {entry.finishTime}
               </div>
             </div>
@@ -467,73 +485,6 @@ function LeaderboardSection({
         })}
       </div>
     </section>
-  );
-}
-
-function AutoFitText({
-  text,
-  className,
-  maxFontSize,
-  minFontSize,
-}: {
-  text: string;
-  className?: string;
-  maxFontSize: number;
-  minFontSize: number;
-}) {
-  const textRef = useRef<HTMLDivElement>(null);
-  const [fontSize, setFontSize] = useState(maxFontSize);
-
-  useEffect(() => {
-    const element = textRef.current;
-    if (!element) {
-      return;
-    }
-
-    let frameId = 0;
-
-    const fitText = () => {
-      if (!element) {
-        return;
-      }
-
-      let nextFontSize = maxFontSize;
-      element.style.fontSize = `${nextFontSize}px`;
-
-      while (nextFontSize > minFontSize && element.scrollWidth > element.clientWidth) {
-        nextFontSize -= 0.5;
-        element.style.fontSize = `${nextFontSize}px`;
-      }
-
-      setFontSize(nextFontSize);
-    };
-
-    const scheduleFit = () => {
-      cancelAnimationFrame(frameId);
-      frameId = requestAnimationFrame(fitText);
-    };
-
-    scheduleFit();
-
-    const observer = new ResizeObserver(() => {
-      scheduleFit();
-    });
-    observer.observe(element);
-
-    return () => {
-      cancelAnimationFrame(frameId);
-      observer.disconnect();
-    };
-  }, [maxFontSize, minFontSize, text]);
-
-  return (
-    <div
-      ref={textRef}
-      className={className}
-      style={{ fontSize: `${fontSize}px` }}
-    >
-      {text}
-    </div>
   );
 }
 
@@ -583,7 +534,7 @@ function RecentDivisionPanel({
                 minFontSize={8}
               />
             </div>
-            <div className="pl-[28px] overlay-time-font text-[12px] font-bold leading-none text-white/92">
+            <div className="overlay-time-font pl-[28px] text-[12px] font-bold leading-none text-white/92">
               {entry.finishTime}
             </div>
           </div>
@@ -619,7 +570,7 @@ function RecentDivisionPanel({
             minFontSize={10}
           />
 
-          <div className="mt-2 overlay-time-font text-center text-[18px] font-bold leading-none text-white/96">
+          <div className="overlay-time-font mt-2 text-center text-[18px] font-bold leading-none text-white/96">
             {latestEntry.finishTime}
           </div>
         </div>
@@ -629,30 +580,50 @@ function RecentDivisionPanel({
 }
 
 export function PublicDisplayScreen() {
-  const camera = useCamera();
-  const localTime = useLocalTime(10);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [stageScale, setStageScale] = useState(1);
-  const [displaySettings, setDisplaySettings] = useState(defaultDashboardSettings);
+  const localTime = useLocalTime(250);
   const [publicFeed, setPublicFeed] = useState<PublicDisplayFeed>(createEmptyFeed);
+  const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
+  const [stageScale, setStageScale] = useState(1);
+  const subscriber = useLivekitSubscriber(videoElement);
+
+  const loadFeed = useCallback(async () => {
+    try {
+      const response = await fetch("/api/public-display", {
+        cache: "no-store",
+      });
+      const nextFeed = (await response.json()) as PublicDisplayFeed;
+      setPublicFeed(nextFeed);
+    } catch {
+      setPublicFeed((current) => ({
+        ...current,
+        error: "Unable to refresh shared race data.",
+        updatedAt: new Date().toISOString(),
+      }));
+    }
+  }, []);
 
   useEffect(() => {
-    void camera.startCamera();
-  }, [camera.startCamera]);
+    void loadFeed();
+  }, [loadFeed]);
 
-  useEffect(() => {
-    if (!videoRef.current) {
-      return;
-    }
+  const displayFinishers = useMemo(
+    () => publicFeed.finishers.filter((finisher) => finisher.reviewStatus !== "duplicate"),
+    [publicFeed.finishers],
+  );
 
-    if (camera.stream) {
-      videoRef.current.srcObject = camera.stream;
-      void videoRef.current.play().catch(() => null);
-      return;
-    }
-
-    videoRef.current.srcObject = null;
-  }, [camera.stream]);
+  useFirebaseRealtime(
+    "public-display",
+    [
+      { table: "race_events", filter: "id=eq.active-event" },
+      { table: "finishers", filter: "event_id=eq.active-event" },
+      { table: "video_state", filter: "event_id=eq.active-event" },
+      { table: "runners", filter: "event_id=eq.active-event" },
+    ],
+    () => {
+      void loadFeed();
+    },
+    true,
+  );
 
   useEffect(() => {
     const updateScale = () => {
@@ -673,122 +644,74 @@ export function PublicDisplayScreen() {
     };
   }, []);
 
-  useEffect(() => {
-    const syncSettings = () => {
-      setDisplaySettings(readDashboardSettings());
-    };
-
-    const handleStorage = (event: StorageEvent) => {
-      if (!event.key || event.key === DASHBOARD_SETTINGS_STORAGE_KEY) {
-        syncSettings();
-      }
-    };
-
-    const handleSettingsUpdated = () => {
-      syncSettings();
-    };
-
-    syncSettings();
-    window.addEventListener("storage", handleStorage);
-    window.addEventListener(DASHBOARD_SETTINGS_UPDATED_EVENT, handleSettingsUpdated);
-
-    return () => {
-      window.removeEventListener("storage", handleStorage);
-      window.removeEventListener(DASHBOARD_SETTINGS_UPDATED_EVENT, handleSettingsUpdated);
-    };
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadFeed = async () => {
-      try {
-        const response = await fetch("/api/public-display", {
-          cache: "no-store",
-        });
-        const nextFeed = (await response.json()) as PublicDisplayFeed;
-
-        if (!isMounted) {
-          return;
-        }
-
-        setPublicFeed(nextFeed);
-      } catch {
-        if (!isMounted) {
-          return;
-        }
-
-        setPublicFeed((current) => ({
-          ...current,
-          error: "Unable to refresh workbook data.",
-          updatedAt: new Date().toISOString(),
-        }));
-      }
-    };
-
-    void loadFeed();
-    const intervalId = window.setInterval(() => {
-      void loadFeed();
-    }, 1000);
-
-    return () => {
-      isMounted = false;
-      window.clearInterval(intervalId);
-    };
-  }, []);
-
   const leaderboardByDivision = useMemo(
     () => ({
       male: buildLeaderboardEntries(
-        publicFeed.finishers,
+        displayFinishers,
         "male",
-        displaySettings.raceStartTimeIso,
+        publicFeed.race.raceStartTimeIso,
       ),
       female: buildLeaderboardEntries(
-        publicFeed.finishers,
+        displayFinishers,
         "female",
-        displaySettings.raceStartTimeIso,
+        publicFeed.race.raceStartTimeIso,
       ),
     }),
-    [displaySettings.raceStartTimeIso, publicFeed.finishers],
+    [displayFinishers, publicFeed.race.raceStartTimeIso],
   );
 
   const recentFinishersByDivision = useMemo(
     () => ({
       male: buildRecentFinishers(
-        publicFeed.finishers,
+        displayFinishers,
         "male",
-        displaySettings.raceStartTimeIso,
+        publicFeed.race.raceStartTimeIso,
       ),
       female: buildRecentFinishers(
-        publicFeed.finishers,
+        displayFinishers,
         "female",
-        displaySettings.raceStartTimeIso,
+        publicFeed.race.raceStartTimeIso,
       ),
     }),
-    [displaySettings.raceStartTimeIso, publicFeed.finishers],
+    [displayFinishers, publicFeed.race.raceStartTimeIso],
   );
 
   const startTimeLabel = useMemo(
-    () => formatStartTime(displaySettings.raceStartTimeIso),
-    [displaySettings.raceStartTimeIso],
+    () => formatStartTime(publicFeed.race.raceStartTimeIso),
+    [publicFeed.race.raceStartTimeIso],
   );
   const raceClock = useMemo(
     () =>
       formatRaceClock(
         getRaceClockReferenceTime(
           localTime,
-          displaySettings.raceStatus,
-          displaySettings.raceEndTimeIso,
+          publicFeed.race.raceStatus,
+          publicFeed.race.raceEndTimeIso,
         ),
-        displaySettings.raceStartTimeIso,
+        publicFeed.race.raceStartTimeIso,
       ),
     [
-      displaySettings.raceEndTimeIso,
-      displaySettings.raceStartTimeIso,
-      displaySettings.raceStatus,
       localTime,
+      publicFeed.race.raceEndTimeIso,
+      publicFeed.race.raceStartTimeIso,
+      publicFeed.race.raceStatus,
     ],
+  );
+  const effectiveVideoStatus = useMemo(
+    () =>
+      getEffectiveVideoPublishStatus(
+        publicFeed.video,
+        localTime?.getTime() ?? Date.now(),
+      ),
+    [localTime, publicFeed.video],
+  );
+  const heartbeatExpired = useMemo(
+    () =>
+      isVideoHeartbeatExpired(
+        publicFeed.video,
+        localTime?.getTime() ?? Date.now(),
+      ),
+    [localTime, publicFeed.video],
   );
 
   const stageFrameStyle = useMemo(
@@ -843,6 +766,20 @@ export function PublicDisplayScreen() {
     };
   }, []);
 
+  const videoHeadline =
+    publicFeed.video.activeSourceLabel ??
+    (subscriber.status === "live" ? "Live Camera" : "Video Feed");
+  const videoMessage =
+    subscriber.status === "live"
+      ? `${videoHeadline} is live from the operator station.`
+      : subscriber.status === "connecting"
+        ? "Connecting to the operator video feed..."
+        : heartbeatExpired
+          ? "Operator video heartbeat expired. Restart the camera broadcast from the dashboard."
+          : effectiveVideoStatus === "live"
+          ? "Waiting for the remote video track to arrive."
+          : "Operator video is offline. Results continue to update live.";
+
   return (
     <div className="festival-display-background relative min-h-screen overflow-hidden">
       <main className="absolute inset-0 overflow-hidden">
@@ -852,35 +789,53 @@ export function PublicDisplayScreen() {
         >
           <div className="relative h-full w-full" style={scaledStageStyle}>
             <section
-              className="absolute overflow-hidden rounded-[25px] bg-black border-[4px] border-white"
+              className="absolute overflow-hidden rounded-[25px] border-[4px] border-white bg-black"
               style={{
                 left: sx(layout.camera.left),
                 top: sy(layout.camera.top),
                 width: sx(layout.camera.width),
                 height: sy(layout.camera.height),
               }}
-              onClick={() => {
-                if (!camera.stream) {
-                  void camera.startCamera();
-                }
-              }}
             >
-              {camera.stream ? (
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  muted
-                  playsInline
-                  className="h-full w-full object-cover"
-                />
+              <video
+                ref={setVideoElement}
+                autoPlay
+                muted
+                playsInline
+                className={`h-full w-full object-cover transition-opacity duration-300 ${
+                  subscriber.status === "live" ? "opacity-100" : "opacity-0"
+                }`}
+              />
+
+              {subscriber.status !== "live" ? (
+                <div className="soft-grid absolute inset-0 flex items-center justify-center bg-[radial-gradient(circle_at_top_right,rgba(76,5,228,0.25),transparent_24%),radial-gradient(circle_at_bottom_left,rgba(161,209,16,0.18),transparent_26%),linear-gradient(180deg,#141829_0%,#0B0F1D_100%)] px-6 text-white">
+                  <div className="max-w-xl text-center">
+                    <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-[28px] bg-white/10 backdrop-blur">
+                      <div className="h-12 w-12 rounded-[18px] border border-white/30 bg-gradient-to-br from-white/10 to-white/0" />
+                    </div>
+                    <h2 className="overlay-title-font text-[34px] leading-none text-white">
+                      {videoHeadline}
+                    </h2>
+                    <p className="mt-4 text-base font-semibold text-white/78">{videoMessage}</p>
+                    {subscriber.error || publicFeed.error ? (
+                      <p className="mt-4 text-sm font-bold text-[#ffd36e]">
+                        {subscriber.error ?? publicFeed.error}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
               ) : null}
 
-              <div
-                className="absolute z-10 flex items-center gap-2 rounded-[20px] bg-[#E61D26] px-4 py-[6px] font-[Arial,sans-serif] text-[22px] font-bold tracking-[0.04em] text-white"
-                style={{ left: sx(30), top: sy(25) }}
-              >
-                <span>LIVE</span>
-                <span className="festival-live-dot h-[14px] w-[14px] rounded-full bg-white" />
+              <div className="pointer-events-none absolute left-[24px] top-[18px] z-10">
+                {subscriber.status === "live" ? (
+                  <div className="rounded-full border border-[#ff6b6b]/70 bg-[#c81515] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.22em] text-white shadow-[0_0_18px_rgba(200,21,21,0.35)]">
+                    Live
+                  </div>
+                ) : (
+                  <div className="rounded-full bg-black/45 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.22em] text-white/90 backdrop-blur">
+                    Awaiting Camera
+                  </div>
+                )}
               </div>
             </section>
 
@@ -919,7 +874,11 @@ export function PublicDisplayScreen() {
             >
               <div className="overlay-title-font mb-[8px] flex items-center justify-center gap-[8px] text-[30px] leading-none text-white [text-shadow:-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,1px_1px_0_#000]">
                 <div className="w-[72px]">
-                  <Image src={leaderboardLogo} alt="Leaderboard Logo" className="h-auto w-full object-contain" />
+                  <Image
+                    src={leaderboardLogo}
+                    alt="Leaderboard Logo"
+                    className="h-auto w-full object-contain"
+                  />
                 </div>
                 <span className="flex items-baseline">
                   <span className="text-[60px]">L</span>EADERBOARD
@@ -946,14 +905,12 @@ export function PublicDisplayScreen() {
               }}
             >
               <h2 className="overlay-title-font flex w-full items-baseline justify-center gap-1 text-center text-[26px] leading-none text-white [text-shadow:-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,1px_1px_0_#000]">
-                <span className="text-[52px]">R</span>ECENT <span className="text-[50px] ml-5">F</span>INISHERS
+                <span className="text-[52px]">R</span>ECENT{" "}
+                <span className="ml-5 text-[50px]">F</span>INISHERS
               </h2>
 
               <div className="mt-0 grid grid-cols-2 gap-3">
-                <RecentDivisionPanel
-                  division="male"
-                  entries={recentFinishersByDivision.male}
-                />
+                <RecentDivisionPanel division="male" entries={recentFinishersByDivision.male} />
                 <RecentDivisionPanel
                   division="female"
                   entries={recentFinishersByDivision.female}
@@ -969,7 +926,7 @@ export function PublicDisplayScreen() {
                 width: sx(layout.bottom.width),
               }}
             >
-              <div 
+              <div
                 className="flex flex-col items-center justify-center rounded-[24px] border-[3px] border-white/85 bg-gradient-to-br from-black/60 to-purple-900/40 px-0 py-5 backdrop-blur-md shadow-2xl"
                 style={{ minWidth: sx(240), marginTop: sy(-16) }}
               >
@@ -990,16 +947,22 @@ export function PublicDisplayScreen() {
                 />
               </div>
 
-              <div 
+              <div
                 className="flex flex-col items-center justify-center rounded-[24px] border-[3px] border-white/85 bg-gradient-to-br from-black/60 to-purple-900/40 px-0 py-0 backdrop-blur-md shadow-2xl"
-                style={{ minWidth: sx(430), paddingTop: sy(0), paddingBottom: sy(0), marginTop: sy(-16) }}
+                style={{
+                  minWidth: sx(430),
+                  paddingTop: sy(0),
+                  paddingBottom: sy(0),
+                  marginTop: sy(-16),
+                }}
               >
                 <div className="overlay-title-font mb-0 text-[30px] tracking-[0.05em] [text-shadow:-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,1px_1px_0_#000]">
                   <span className="text-[#fba202]">RACE</span>{" "}
                   <span className="text-[#85bd06]">TIME</span>
                 </div>
-                <div className="flex items-baseline justify-center text-[#ff2100] [text-shadow:-1px_-1px_0_#fff,1px_-1px_0_#fff,-1px_1px_0_#fff,1px_1px_0_#fff]"
-                style={{ marginTop: sy(-10) }}
+                <div
+                  className="flex items-baseline justify-center text-[#ff2100] [text-shadow:-1px_-1px_0_#fff,1px_-1px_0_#fff,-1px_1px_0_#fff,1px_1px_0_#fff]"
+                  style={{ marginTop: sy(-10) }}
                 >
                   <div className="overlay-digital-font flex items-baseline text-[99px] font-bold leading-none">
                     <DigitalDigits value={raceClock.hours} />
@@ -1009,14 +972,13 @@ export function PublicDisplayScreen() {
                     <DigitalDigits value={raceClock.seconds} />
                   </div>
                 </div>
-                {displaySettings.raceStatus === "ended" ? (
-                  <div className="mt-0 overlay-title-font text-[20px] leading-none text-white">
+                {publicFeed.race.raceStatus === "ended" ? (
+                  <div className="overlay-title-font mt-0 text-[20px] leading-none text-white">
                     RUN ENDED
                   </div>
                 ) : null}
               </div>
             </section>
-
           </div>
         </div>
       </main>

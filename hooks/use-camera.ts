@@ -3,13 +3,45 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CameraConnectionState, VideoInputOption } from "@/lib/types";
 
+function getFriendlyCameraLabel(label: string, index: number) {
+  const trimmed = label.trim().replace(/\s*\([^)]*\)\s*$/, "");
+
+  if (!trimmed) {
+    return `Camera ${index + 1}`;
+  }
+
+  if (/integrated/i.test(trimmed)) {
+    return "Built-in Camera";
+  }
+
+  if (/obs/i.test(trimmed)) {
+    return "OBS Virtual Camera";
+  }
+
+  if (/virtual/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  return trimmed;
+}
+
 function mapVideoInputs(devices: MediaDeviceInfo[]): VideoInputOption[] {
+  const duplicateCounts = new Map<string, number>();
+
   return devices
     .filter((device) => device.kind === "videoinput")
-    .map((device, index) => ({
-      deviceId: device.deviceId,
-      label: device.label || `Camera ${index + 1}`,
-    }));
+    .map((device, index) => {
+      const rawLabel = device.label || `Camera ${index + 1}`;
+      const baseLabel = getFriendlyCameraLabel(rawLabel, index);
+      const nextCount = (duplicateCounts.get(baseLabel) ?? 0) + 1;
+      duplicateCounts.set(baseLabel, nextCount);
+
+      return {
+        deviceId: device.deviceId,
+        label: nextCount > 1 ? `${baseLabel} ${nextCount}` : baseLabel,
+        rawLabel,
+      };
+    });
 }
 
 export function useCamera() {
@@ -19,6 +51,8 @@ export function useCamera() {
   const [status, setStatus] = useState<CameraConnectionState>("disconnected");
   const [error, setError] = useState<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const selectedDeviceMissing =
+    Boolean(selectedDeviceId) && !devices.some((device) => device.deviceId === selectedDeviceId);
 
   const refreshDevices = useCallback(async () => {
     if (!navigator.mediaDevices?.enumerateDevices) {
@@ -39,6 +73,7 @@ export function useCamera() {
 
   const stopCamera = useCallback(() => {
     releaseStream();
+    setError(null);
     setStatus("disconnected");
   }, [releaseStream]);
 
@@ -47,10 +82,19 @@ export function useCamera() {
       if (!navigator.mediaDevices?.getUserMedia) {
         setStatus("unsupported");
         setError("This browser does not expose camera access.");
-        return;
+        return null;
       }
 
       const requestedDeviceId = deviceId ?? selectedDeviceId;
+
+      if (
+        requestedDeviceId &&
+        !devices.some((deviceOption) => deviceOption.deviceId === requestedDeviceId)
+      ) {
+        setStatus("disconnected");
+        setError("The locked camera is unavailable. Reconnect it or choose another source.");
+        return null;
+      }
 
       setError(null);
       releaseStream();
@@ -84,16 +128,17 @@ export function useCamera() {
         }
 
         await refreshDevices();
+        return nextStream;
       } catch (firstError) {
         const domError = firstError as DOMException;
 
         if (domError.name === "NotAllowedError") {
           setStatus("denied");
           setError("Camera permission was denied. Allow access and retry.");
-          return;
+          return null;
         }
 
-        if (requestedDeviceId) {
+        if (!requestedDeviceId) {
           try {
             const fallbackStream = await navigator.mediaDevices.getUserMedia(
               buildConstraints(false),
@@ -103,7 +148,7 @@ export function useCamera() {
             setStream(fallbackStream);
             setStatus("connected");
             await refreshDevices();
-            return;
+            return fallbackStream;
           } catch {
             // Fall through to the generic error state below.
           }
@@ -111,9 +156,10 @@ export function useCamera() {
 
         setStatus("disconnected");
         setError("Unable to start the selected camera feed.");
+        return null;
       }
     },
-    [refreshDevices, releaseStream, selectedDeviceId],
+    [devices, refreshDevices, releaseStream, selectedDeviceId],
   );
 
   useEffect(() => {
@@ -141,10 +187,21 @@ export function useCamera() {
     };
   }, [releaseStream]);
 
+  useEffect(() => {
+    if (!selectedDeviceMissing) {
+      return;
+    }
+
+    releaseStream();
+    setStatus("disconnected");
+    setError("The locked camera is unavailable. Reconnect it or choose another source.");
+  }, [releaseStream, selectedDeviceMissing]);
+
   return {
     devices,
     error,
     selectedDeviceId,
+    selectedDeviceMissing,
     setSelectedDeviceId,
     startCamera,
     status,

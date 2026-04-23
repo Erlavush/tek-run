@@ -1,0 +1,25 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /race_events/{eventId} {
+      allow read: if true;
+      allow write: if false;
+
+      match /runners/{runnerId} {
+        allow read: if true;
+        allow write: if false;
+      }
+
+      match /finishers/{finisherId} {
+        allow read: if true;
+        allow write: if false;
+      }
+    }
+
+    match /video_state/{eventId} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

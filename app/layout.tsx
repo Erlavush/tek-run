@@ -55,7 +55,7 @@ const overlayTimeFont = Roboto_Mono({
 export const metadata: Metadata = {
   title: "Finish Line Operator Dashboard",
   description:
-    "Offline AI-assisted finish line dashboard for race operators, public display screens, and future OCR integrations.",
+    "Cloud-synced finish line dashboard for Firestore-backed race control, manual entry, and public display screens.",
 };
 
 export default function RootLayout({

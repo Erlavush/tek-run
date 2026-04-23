@@ -2,26 +2,25 @@ import { cn } from "@/lib/theme";
 import type { StatusTone } from "@/lib/types";
 
 const toneClassMap: Record<StatusTone, string> = {
-  gradient:
-    "bg-gradient-to-r from-[#4C05E4] to-[#A00063] text-white ring-transparent",
-  success: "bg-[#31B548]/12 text-[#1E7B30] ring-[#31B548]/25",
-  warning: "bg-[#FC6824]/12 text-[#B34717] ring-[#FC6824]/25",
-  danger: "bg-[#FF5A5A]/12 text-[#B53030] ring-[#FF5A5A]/24",
-  neutral: "bg-[#1F1F1F]/6 text-[#555555] ring-[#1F1F1F]/8",
-  info: "bg-[#3DA3F4]/12 text-[#245CA8] ring-[#3DA3F4]/24",
-  lime: "bg-[#A1D110]/16 text-[#5D7B0A] ring-[#A1D110]/22",
-  orange: "bg-[#FC6824]/12 text-[#B14C1D] ring-[#FC6824]/24",
+  gradient: "bg-[#1f8f42] text-white ring-[#166534]",
+  success: "bg-[#1f8f42] text-white ring-[#166534]",
+  warning: "bg-[#f59e0b] text-black ring-[#c2410c]",
+  danger: "bg-[#dc2626] text-white ring-[#991b1b]",
+  neutral: "bg-white text-black ring-black/20",
+  info: "bg-white text-black ring-black/20",
+  lime: "bg-[#facc15] text-black ring-[#ca8a04]",
+  orange: "bg-[#f59e0b] text-black ring-[#c2410c]",
 };
 
 const dotClassMap: Record<StatusTone, string> = {
   gradient: "bg-white",
-  success: "bg-[#31B548]",
-  warning: "bg-[#FC6824]",
-  danger: "bg-[#FF5A5A]",
-  neutral: "bg-[#7C7C7C]",
-  info: "bg-[#3DA3F4]",
-  lime: "bg-[#A1D110]",
-  orange: "bg-[#FC6824]",
+  success: "bg-white",
+  warning: "bg-black",
+  danger: "bg-white",
+  neutral: "bg-black",
+  info: "bg-black",
+  lime: "bg-black",
+  orange: "bg-black",
 };
 
 interface StatusChipProps {

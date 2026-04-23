@@ -1,4 +1,8 @@
-import type { DashboardSettings, RaceStatus, ThemeMode } from "@/lib/types";
+import type {
+  DashboardSettings,
+  RaceStatus,
+  ThemeMode,
+} from "@/lib/types";
 
 export const DASHBOARD_SETTINGS_STORAGE_KEY = "tek-run.dashboard-settings";
 export const DASHBOARD_SETTINGS_UPDATED_EVENT = "tek-run:settings-updated";
@@ -10,7 +14,10 @@ export const defaultDashboardSettings: DashboardSettings = {
   autoScrollResults: true,
   soundAlert: true,
   themeMode: "event-light",
-  mockMode: true,
+  mockMode: false,
+  djPocketDeviceId: "",
+  droneDeviceId: "",
+  testCameraDeviceId: "",
   raceStartTimeIso: null,
   raceEndTimeIso: null,
   raceStatus: "idle",
@@ -65,6 +72,18 @@ export function normalizeDashboardSettings(
       typeof value?.mockMode === "boolean"
         ? value.mockMode
         : defaultDashboardSettings.mockMode,
+    djPocketDeviceId:
+      typeof value?.djPocketDeviceId === "string"
+        ? value.djPocketDeviceId
+        : defaultDashboardSettings.djPocketDeviceId,
+    droneDeviceId:
+      typeof value?.droneDeviceId === "string"
+        ? value.droneDeviceId
+        : defaultDashboardSettings.droneDeviceId,
+    testCameraDeviceId:
+      typeof value?.testCameraDeviceId === "string"
+        ? value.testCameraDeviceId
+        : defaultDashboardSettings.testCameraDeviceId,
     raceStartTimeIso: normalizeRaceStartTime(value?.raceStartTimeIso),
     raceEndTimeIso: normalizeRaceStartTime(value?.raceEndTimeIso),
     raceStatus:

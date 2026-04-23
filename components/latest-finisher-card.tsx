@@ -19,10 +19,10 @@ export function LatestFinisherCard({
 
   if (!finisher) {
     return (
-      <section className="panel-card p-5 lg:p-6">
-        <h2 className={sectionTitleClass}>Latest Finisher</h2>
-        <p className="mt-4 rounded-[24px] bg-[#F6F6F6] px-5 py-8 text-center text-sm font-medium text-[#5E5763]">
-          No finisher has been logged yet.
+      <section className="panel-card p-4 lg:p-5">
+        <h2 className={sectionTitleClass}>Latest</h2>
+        <p className="mt-3 rounded-[20px] border border-black bg-white px-5 py-6 text-center text-sm font-medium text-black/65">
+          No finisher yet.
         </p>
       </section>
     );
@@ -30,15 +30,10 @@ export function LatestFinisherCard({
 
   if (!isPublic) {
     return (
-      <section className="panel-card p-5 lg:p-6">
-        <div className="flex flex-col gap-4">
+      <section className="panel-card p-4 lg:p-5">
+        <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.34em] text-[#7A7185]">
-                Latest Finisher
-              </p>
-              <h2 className={`${sectionTitleClass} mt-2`}>Latest Logged Result</h2>
-            </div>
+            <h2 className={sectionTitleClass}>Latest</h2>
 
             <div className="flex flex-wrap gap-2">
               <StatusChip
@@ -52,58 +47,43 @@ export function LatestFinisherCard({
             </div>
           </div>
 
-          <div className="rounded-[28px] bg-[#FAFAFA] px-5 py-5 ring-1 ring-[#1F1F1F]/6">
+          <div className="rounded-[20px] border border-black bg-white px-4 py-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#8A8492]">
-                  Bib Number
-                </p>
-                <p className="mt-2 font-[family-name:var(--font-display)] text-5xl font-black tracking-tight text-[#1F1F1F]">
+                <p className="font-[family-name:var(--font-display)] text-5xl font-black tracking-tight text-black">
                   {finisher.bibNumber}
                 </p>
-                <p className="mt-2 text-lg font-bold text-[#1F1F1F]">
+                <p className="mt-1 text-lg font-bold text-black">
                   {finisher.runnerName}
                 </p>
               </div>
 
-              <div className="rounded-[22px] bg-white px-4 py-3 ring-1 ring-[#1F1F1F]/6">
-                <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#8A8492]">
-                  Finish Time
+              <div className="rounded-[18px] border border-black bg-white px-4 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-black/50">
+                  Time
                 </p>
-                <p className="mt-2 font-[family-name:var(--font-display)] text-2xl font-extrabold text-[#1F1F1F]">
+                <p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-extrabold text-black">
                   {finisher.finishTime}
                 </p>
               </div>
             </div>
 
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <div className="rounded-[22px] bg-white px-4 py-3 ring-1 ring-[#1F1F1F]/6">
-                <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#8A8492]">
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[18px] border border-black bg-white px-4 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-black/50">
                   Place
                 </p>
-                <p className="mt-2 text-base font-bold text-[#1F1F1F]">#{finisher.place}</p>
+                <p className="mt-1 text-base font-bold text-black">#{finisher.place}</p>
               </div>
-              <div className="rounded-[22px] bg-white px-4 py-3 ring-1 ring-[#1F1F1F]/6">
-                <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#8A8492]">
+              <div className="rounded-[18px] border border-black bg-white px-4 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-black/50">
                   Logged At
                 </p>
-                <p className="mt-2 text-base font-bold text-[#1F1F1F]">
+                <p className="mt-1 text-base font-bold text-black">
                   {formatNullableTime(finisher.loggedAt)}
                 </p>
               </div>
-              <div className="rounded-[22px] bg-white px-4 py-3 ring-1 ring-[#1F1F1F]/6">
-                <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#8A8492]">
-                  Event
-                </p>
-                <p className="mt-2 text-base font-bold text-[#1F1F1F]">{eventName}</p>
-              </div>
             </div>
-
-            {currentTimeLabel ? (
-              <p className="mt-4 text-right text-xs font-bold uppercase tracking-[0.28em] text-[#7A7185]">
-                Local clock {currentTimeLabel}
-              </p>
-            ) : null}
           </div>
         </div>
       </section>
@@ -187,7 +167,7 @@ export function LatestFinisherCard({
                 </div>
                 <div className="rounded-[24px] bg-[#F7F7F7] px-4 py-4 ring-1 ring-[#1F1F1F]/6">
                   <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#8A8492]">
-                    Last Detection
+                    Logged At
                   </p>
                   <p className="mt-2 text-base font-bold text-[#1F1F1F]">
                     {formatNullableTime(finisher.loggedAt)}
