@@ -124,7 +124,6 @@ export function FinisherReviewScreen() {
     [
       { table: "race_events", filter: "id=eq.active-event" },
       { table: "finishers", filter: "event_id=eq.active-event" },
-      { table: "runners", filter: "event_id=eq.active-event" },
     ],
     () => {
       void loadFeed();
