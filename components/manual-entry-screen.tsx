@@ -383,58 +383,156 @@ export function ManualEntryScreen() {
           </div>
         </div>
 
-        <div className="mt-4 flex justify-center">
-          <div className="flex flex-col items-center">
-            <p className="text-center text-[18px] font-black uppercase tracking-[0.08em] text-white">
-              ELAPSED TIME
-            </p>
-            <div className="mt-2 rounded-[34px] border-[6px] border-white px-8 py-3">
-              <div className="overlay-digital-font text-center text-[58px] font-bold leading-none text-white md:text-[76px]">
-                {elapsedClock}
+        <div className="lg:mr-[360px]">
+          <div className="mt-4 flex justify-center">
+            <div className="flex flex-col items-center">
+              <p className="text-center text-[18px] font-black uppercase tracking-[0.08em] text-white">
+                ELAPSED TIME
+              </p>
+              <div className="mt-2 rounded-[34px] border-[6px] border-white px-8 py-3">
+                <div className="overlay-digital-font text-center text-[58px] font-bold leading-none text-white md:text-[76px]">
+                  {elapsedClock}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-1 items-center justify-center">
+            <div className="w-full">
+              <div className="mx-auto mt-8 grid max-w-[1180px] grid-cols-2 gap-4 md:mt-12 md:grid-cols-4 md:gap-8">
+                {slotValues.map((value, index) => (
+                  <div
+                    key={`${value}-${index}`}
+                    className="flex min-h-[220px] items-center justify-center rounded-[30px] bg-white text-black md:min-h-[300px] xl:min-h-[360px]"
+                  >
+                    <span className="font-[family-name:var(--font-display)] text-[112px] font-extrabold leading-none md:text-[150px] xl:text-[200px]">
+                      {value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-10 flex flex-col items-center justify-center">
+                <button
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => void saveEntry()}
+                  disabled={feed.race.raceStatus !== "running"}
+                  className="overlay-title-font inline-flex min-w-[280px] items-center justify-center rounded-[28px] bg-white px-10 py-4 text-[40px] leading-none text-black transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45 md:min-w-[320px] md:text-[46px]"
+                >
+                  ENTER
+                </button>
+
+                <p className={`mt-4 text-center text-sm font-bold tracking-[0.08em] ${statusClass}`}>
+                  {statusMessage}
+                </p>
+                <p className="mt-2 text-center text-xs font-bold uppercase tracking-[0.16em] text-white/45">
+                  {pendingCount} pending | {failedCount} failed | {isProcessing ? "syncing" : "ready"}
+                </p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-1 items-center justify-center">
-          <div className="w-full">
-            <div className="mx-auto mt-8 grid max-w-[1180px] grid-cols-2 gap-4 md:mt-12 md:grid-cols-4 md:gap-8">
-              {slotValues.map((value, index) => (
-                <div
-                  key={`${value}-${index}`}
-                  className="flex min-h-[220px] items-center justify-center rounded-[30px] bg-white text-black md:min-h-[300px] xl:min-h-[360px]"
-                >
-                  <span className="font-[family-name:var(--font-display)] text-[112px] font-extrabold leading-none md:text-[150px] xl:text-[200px]">
-                    {value}
+        <aside className="mt-8 w-full max-w-[360px] self-center rounded-[30px] bg-white px-5 py-4 text-black lg:hidden">
+          <div className="flex flex-col gap-4">
+            <div className="grid gap-4 lg:grid-cols-[190px_minmax(0,1fr)] lg:gap-5">
+              <section className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="overlay-title-font text-[20px] leading-none text-black">
+                    QUEUE
+                  </p>
+                  <span className="rounded-full border border-black px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]">
+                    {pendingCount} pending
                   </span>
                 </div>
-              ))}
+
+                <div className="space-y-2.5">
+                  {queuedEntriesPreview.map((entry) => (
+                    <div key={entry.requestId} className="flex items-baseline justify-between gap-3">
+                      <div className="min-w-0 text-[16px] font-extrabold leading-none text-black">
+                        <span>{entry.bibNumber}</span>
+                        <span className="ml-2 text-[10px] uppercase tracking-[0.14em] text-black/55">
+                          {entry.status}
+                        </span>
+                      </div>
+                      <div className="shrink-0 text-[12px] font-bold text-black/70">
+                        #{entry.attemptCount}
+                      </div>
+                    </div>
+                  ))}
+
+                  {queuedEntriesPreview.length === 0 ? (
+                    <div className="text-sm font-semibold text-black/55">No queued entries.</div>
+                  ) : null}
+                </div>
+
+                {failedCount > 0 ? (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                      type="button"
+                      className="rounded-[16px] border border-black bg-black px-3 py-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white"
+                      onClick={retryFailedEntries}
+                    >
+                      Retry Failed
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-[16px] border border-black bg-white px-3 py-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-black"
+                      onClick={clearFailedEntries}
+                    >
+                      Clear Failed
+                    </button>
+                  </div>
+                ) : null}
+              </section>
+
+              <section className="border-t-[3px] border-black/85 pt-4 lg:border-l-[3px] lg:border-t-0 lg:pl-5 lg:pt-0">
+                <p className="overlay-title-font text-right text-[20px] leading-none text-black">
+                  LATEST
+                </p>
+
+                <div className="mt-3 space-y-2.5">
+                  {queueEntries.map((entry) => (
+                    <div key={entry.id} className="flex items-baseline justify-between gap-3">
+                      <div className={`min-w-0 text-[16px] font-extrabold leading-none ${getEntryAccent(entry)}`}>
+                        <span>{entry.bibNumber}</span>
+                        <span className="ml-2 truncate text-[13px]">{entry.runnerName ?? "NO NAME"}</span>
+                      </div>
+                      <div className="shrink-0 text-[13px] font-bold text-black">
+                        {entry.elapsedRaceTime}
+                      </div>
+                    </div>
+                  ))}
+
+                  {queueEntries.length === 0 ? (
+                    <div className="text-sm font-semibold text-black/55">No saved entries yet.</div>
+                  ) : null}
+                </div>
+              </section>
             </div>
 
-            <div className="mt-10 flex flex-col items-center justify-center">
-              <button
-                type="button"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => void saveEntry()}
-                disabled={feed.race.raceStatus !== "running"}
-                className="overlay-title-font inline-flex min-w-[280px] items-center justify-center rounded-[28px] bg-white px-10 py-4 text-[40px] leading-none text-black transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-45 md:min-w-[320px] md:text-[46px]"
-              >
-                ENTER
-              </button>
-
-              <p className={`mt-4 text-center text-sm font-bold tracking-[0.08em] ${statusClass}`}>
-                {statusMessage}
-              </p>
-              <p className="mt-2 text-center text-xs font-bold uppercase tracking-[0.16em] text-white/45">
-                {pendingCount} pending | {failedCount} failed | {isProcessing ? "syncing" : "ready"}
-              </p>
+            <div className="border-t-[3px] border-black/85 pt-4">
+              {featuredEntry ? (
+                <div className="flex flex-col gap-2 text-center lg:flex-row lg:items-end lg:justify-between lg:text-left">
+                  <div className={`text-[28px] font-extrabold leading-none ${getEntryAccent(featuredEntry)}`}>
+                    {featuredEntry.bibNumber}
+                    <span className="ml-2 text-[18px]">{featuredEntry.runnerName ?? "NO NAME"}</span>
+                  </div>
+                  <div className="text-[18px] font-black text-black">
+                    {featuredEntry.elapsedRaceTime}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center text-sm font-semibold text-black/55">Waiting for first save.</div>
+              )}
             </div>
           </div>
-        </div>
+        </aside>
 
-        <aside className="mt-8 w-full max-w-[320px] self-center rounded-[30px] bg-white px-5 py-4 text-black lg:absolute lg:bottom-8 lg:right-8 lg:mt-0">
+        <section className="hidden lg:block lg:absolute lg:right-8 lg:top-[112px] lg:w-[320px] lg:rounded-[30px] lg:bg-white lg:px-5 lg:py-4 lg:text-black">
           <div className="flex items-center justify-between gap-3">
-            <p className="overlay-title-font text-right text-[22px] leading-none text-black">
+            <p className="overlay-title-font text-[20px] leading-none text-black">
               QUEUE
             </p>
             <span className="rounded-full border border-black px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]">
@@ -442,16 +540,16 @@ export function ManualEntryScreen() {
             </span>
           </div>
 
-          <div className="mt-4 space-y-3">
+          <div className="mt-4 space-y-2.5">
             {queuedEntriesPreview.map((entry) => (
               <div key={entry.requestId} className="flex items-baseline justify-between gap-3">
-                <div className="min-w-0 text-[18px] font-extrabold leading-none text-black">
+                <div className="min-w-0 text-[16px] font-extrabold leading-none text-black">
                   <span>{entry.bibNumber}</span>
-                  <span className="ml-2 text-[11px] uppercase tracking-[0.14em] text-black/55">
+                  <span className="ml-2 text-[10px] uppercase tracking-[0.14em] text-black/55">
                     {entry.status}
                   </span>
                 </div>
-                <div className="shrink-0 text-[14px] font-bold text-black">
+                <div className="shrink-0 text-[12px] font-bold text-black/70">
                   #{entry.attemptCount}
                 </div>
               </div>
@@ -466,35 +564,35 @@ export function ManualEntryScreen() {
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 type="button"
-                className="rounded-[16px] border border-black bg-black px-3 py-2 text-xs font-extrabold uppercase tracking-[0.14em] text-white"
+                className="rounded-[16px] border border-black bg-black px-3 py-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-white"
                 onClick={retryFailedEntries}
               >
                 Retry Failed
               </button>
               <button
                 type="button"
-                className="rounded-[16px] border border-black bg-white px-3 py-2 text-xs font-extrabold uppercase tracking-[0.14em] text-black"
+                className="rounded-[16px] border border-black bg-white px-3 py-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-black"
                 onClick={clearFailedEntries}
               >
                 Clear Failed
               </button>
             </div>
           ) : null}
+        </section>
 
-          <div className="my-4 border-t-[3px] border-black/85" />
-
-          <p className="overlay-title-font text-right text-[22px] leading-none text-black">
+        <section className="hidden lg:block lg:absolute lg:bottom-8 lg:right-8 lg:w-[320px] lg:rounded-[30px] lg:bg-white lg:px-5 lg:py-4 lg:text-black">
+          <p className="overlay-title-font text-right text-[20px] leading-none text-black">
             LATEST
           </p>
 
-          <div className="mt-4 space-y-3">
+          <div className="mt-4 space-y-2.5">
             {queueEntries.map((entry) => (
               <div key={entry.id} className="flex items-baseline justify-between gap-3">
-                <div className={`min-w-0 text-[18px] font-extrabold leading-none ${getEntryAccent(entry)}`}>
+                <div className={`min-w-0 text-[16px] font-extrabold leading-none ${getEntryAccent(entry)}`}>
                   <span>{entry.bibNumber}</span>
-                  <span className="ml-2 truncate text-[14px]">{entry.runnerName ?? "NO NAME"}</span>
+                  <span className="ml-2 truncate text-[13px]">{entry.runnerName ?? "NO NAME"}</span>
                 </div>
-                <div className="shrink-0 text-[14px] font-bold text-black">
+                <div className="shrink-0 text-[13px] font-bold text-black">
                   {entry.elapsedRaceTime}
                 </div>
               </div>
@@ -520,7 +618,7 @@ export function ManualEntryScreen() {
           ) : (
             <div className="text-center text-sm font-semibold text-black/55">Waiting for first save.</div>
           )}
-        </aside>
+        </section>
       </main>
     </div>
   );
